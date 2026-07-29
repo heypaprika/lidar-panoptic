@@ -8,7 +8,10 @@ A gate that fails **blocks** the next phase — fix it before moving on.
 - [x] Voxelize + collate (numpy, version-robust) + DataModule.
 - [x] Semantic training wired: CE + Lovász, val **mIoU**, Hydra/Lightning entrypoint.
 - [x] Runnable backbone: **MinkUNet (torchsparse)** — `python -m src.train task=semantic`.
-- [ ] **Verify torchsparse v2.1 API** on local GPU (marked `# VERIFY` in `backbone.py`); fix if needed.
+- [x] **Pipeline smoke test** (`scripts/smoke_test.py`, dummy backbone, synthetic pts) — collate /
+      heads / Lovász / CE / IoU verified end-to-end on torch 2.4 + CUDA. torchsparse-independent.
+- [ ] **Verify torchsparse v2.1 API** on a box with the sparse-conv build (marked `# VERIFY` in
+      `backbone.py`) — this dev box has no sudo for libsparsehash + too little disk for the dataset.
 - [ ] Run: reproduce semantic **mIoU** on val (seq 08). Sanity-check a scan in Open3D.
 - [ ] (upgrade) swap MinkUNet → **SPVCNN** (vendor spvnas) for the headline number.
 - **GATE 1:** semantic mIoU *close to published* (reduced setting ok). If not → stop & fix.

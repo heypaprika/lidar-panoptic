@@ -76,6 +76,22 @@ class SPVCNNBackbone(nn.Module):
         raise NotImplementedError
 
 
+class DummyBackbone(nn.Module):
+    """torchsparse-free per-point MLP over devoxelized features. For CI/smoke tests only
+    (verifies collate/heads/losses/eval wiring without the sparse conv build)."""
+
+    def __init__(self, in_channels: int = 4, feat_channels: int = 96, cr: float = 1.0):
+        super().__init__()
+        self.net = nn.Sequential(
+            nn.Linear(in_channels, feat_channels), nn.ReLU(True),
+            nn.Linear(feat_channels, feat_channels),
+        )
+
+    def forward(self, batch: dict) -> torch.Tensor:
+        pf = batch["feats"][batch["inverse"]]  # voxel feat -> per point [Ptot, in_channels]
+        return self.net(pf)
+
+
 def build_backbone(cfg) -> nn.Module:
     name = cfg.model.name
     kw = dict(in_channels=cfg.model.in_channels, feat_channels=cfg.model.feat_channels, cr=cfg.model.cr)
@@ -83,4 +99,6 @@ def build_backbone(cfg) -> nn.Module:
         return MinkUNetBackbone(**kw)
     if name == "spvcnn":
         return SPVCNNBackbone(**kw)
+    if name == "dummy":
+        return DummyBackbone(**kw)
     raise ValueError(f"unknown backbone {name}")
