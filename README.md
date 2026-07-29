@@ -28,23 +28,31 @@ config, docs) is in; backbone wiring + Lightning training loop + PQ wrapper are 
 | ablation: embedding+MeanShift | — | — | — | — | — | — |
 
 ## Setup
-```bash
-# 1) env
-conda create -n panoptic python=3.10 -y && conda activate panoptic
-pip install -r requirements.txt
-# torchsparse (needs libsparsehash-dev; from source):
-sudo apt-get install -y libsparsehash-dev
-pip install --no-build-isolation git+https://github.com/mit-han-lab/torchsparse.git@v2.1.0
 
-# 2) data — SemanticKITTI (velodyne + labels), set root in configs/data/semantickitti.yaml
-#   dataset/sequences/{00..21}/{velodyne/*.bin, labels/*.label}
+Training targets a **rented cloud GPU** (24GB+ VRAM, ~170GB disk). Two paths:
+
+```bash
+# A) Docker (reproducible):
+docker build -f docker/Dockerfile -t panoptic .
+
+# B) Bare box with sudo (vast.ai / runpod / lambda cuda-devel image):
+bash scripts/setup_cloud.sh      # apt libsparsehash + pip + torchsparse + smoke test
+
+# data — SemanticKITTI velodyne+labels (~80GB), then point the config at it:
+bash scripts/download_semantickitti.sh /data/semantickitti
+#   -> edit configs/data/semantickitti.yaml  root: /data/semantickitti/dataset
+```
+
+No GPU/data? Verify the pipeline without torchsparse or the dataset:
+```bash
+PYTHONPATH=. python -m scripts.smoke_test   # synthetic: collate/heads/losses/mIoU
 ```
 
 ## Run
 ```bash
-python -m src.train                              # defaults (Hydra)
+python -m src.train task=semantic model=minkunet     # GATE 1: reproduce mIoU (seq 08 val)
 python -m src.train model=spvcnn data.voxel=0.05 trainer.precision=16-mixed
-python -m src.eval  ckpt=runs/best.ckpt          # PQ / mIoU
+python -m src.eval  ckpt=runs/best.ckpt              # PQ / mIoU
 python -m scripts.viz ckpt=runs/best.ckpt seq=08 frame=000000   # Open3D
 ```
 
