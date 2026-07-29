@@ -1,10 +1,10 @@
 defaults:
   - data: semantickitti
-  - model: spvcnn
+  - model: minkunet
   - _self_
 
 seed: 42
-task: panoptic          # semantic | panoptic
+task: semantic          # GATE 1: semantic | panoptic(GATE 2)
 trainer:
   max_epochs: 40
   precision: 16-mixed   # fp16 for 24GB

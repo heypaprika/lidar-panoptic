@@ -4,10 +4,14 @@ Core = weeks 1–5. Stretch (sim-to-real) = weeks 6–7. Polish = week 8.
 A gate that fails **blocks** the next phase — fix it before moving on.
 
 ## Week 1–2 · Semantic backbone repro  ⛔ GATE 1
-- [ ] SemanticKITTI dataset + label map wired (`src/data/`), sanity-check a scan in Open3D.
-- [ ] SPVCNN backbone via torchsparse (adapt **spvnas**), semantic head only.
-- [ ] Train + eval **mIoU** on val (seq 08).
-- **GATE 1:** semantic mIoU is *close to published* (reduced setting ok). If not → stop & fix.
+- [x] SemanticKITTI dataset + label map (`src/data/`) — remap/instance/mIoU **unit-verified**.
+- [x] Voxelize + collate (numpy, version-robust) + DataModule.
+- [x] Semantic training wired: CE + Lovász, val **mIoU**, Hydra/Lightning entrypoint.
+- [x] Runnable backbone: **MinkUNet (torchsparse)** — `python -m src.train task=semantic`.
+- [ ] **Verify torchsparse v2.1 API** on local GPU (marked `# VERIFY` in `backbone.py`); fix if needed.
+- [ ] Run: reproduce semantic **mIoU** on val (seq 08). Sanity-check a scan in Open3D.
+- [ ] (upgrade) swap MinkUNet → **SPVCNN** (vendor spvnas) for the headline number.
+- **GATE 1:** semantic mIoU *close to published* (reduced setting ok). If not → stop & fix.
 
 ## Week 3–4 · Panoptic heads  ⛔ GATE 2
 - [ ] Center head (centerness heatmap) + Offset head (3D offset to instance center).
