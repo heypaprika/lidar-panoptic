@@ -67,5 +67,12 @@ class PanopticScorer:
             "SQ": float(sq), "RQ": float(rq), "mIoU": float(miou),
         }
 
+    def per_class(self) -> dict[str, np.ndarray]:
+        """Per-class vectors (index = train id 0..19): PQ, SQ, RQ, IoU."""
+        self._ensure()
+        _, _, _, pq_c, sq_c, rq_c = self._ev.getPQ()
+        _, iou_c = self._ev.getSemIoU()
+        return {"PQ": pq_c, "SQ": sq_c, "RQ": rq_c, "IoU": iou_c}
+
     def reset(self) -> None:
         self._ev = None

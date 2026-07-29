@@ -29,7 +29,7 @@ A gate that fails **blocks** the next phase — fix it before moving on.
 - [x] Eval entrypoint (`src/eval.py`): ckpt → val mIoU + (panoptic) PQ/PQ†/SQ/RQ via the val loop.
 - [x] Open3D renderer (`scripts/viz.py` + `viz/render.py`): semantic vs panoptic, interactive or
       offscreen PNG (headless). Needs a ckpt to produce demo frames.
-- [ ] Per-class PQ/IoU table (extend eval printout) + latency/FPS measurement.
+- [x] Per-class PQ/SQ/RQ/IoU table + FPS (network-only & end-to-end w/ clustering) in `src/eval.py`.
 
 ## Week 6–7 · Sim-to-Real (STRETCH — droppable)
 - [ ] CARLA synthetic LiDAR + auto label export → point-cloud dataset.
