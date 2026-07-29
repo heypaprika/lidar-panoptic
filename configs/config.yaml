@@ -15,6 +15,7 @@ loss:
   ce: 1.0
   center: 1.0           # MSE
   offset: 1.0           # L1 (thing points)
+  center_sigma: 1.0     # m; center_gt = exp(-||offset||^2 / 2σ²)
 cluster:
   eps: 0.6              # DBSCAN on offset-shifted coords (m)
   min_points: 20

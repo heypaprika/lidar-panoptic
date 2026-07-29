@@ -17,9 +17,12 @@ A gate that fails **blocks** the next phase — fix it before moving on.
 - **GATE 1:** semantic mIoU *close to published* (reduced setting ok). If not → stop & fix.
 
 ## Week 3–4 · Panoptic heads  ⛔ GATE 2
-- [ ] Center head (centerness heatmap) + Offset head (3D offset to instance center).
-- [ ] Losses: CE + Lovász (sem), MSE (center), L1 (offset, thing points).
-- [ ] Offset-shift + DBSCAN clustering → instance ids → merge to panoptic.
+- [x] Center head (centerness heatmap) + Offset head (3D offset to instance center).
+- [x] Instance targets + losses: per-(scan,inst) centroid → offset_gt/center_gt; MSE(center),
+      L1(offset, thing points). `_instance_targets`/`_instance_loss` **smoke-verified** (grads flow).
+- [x] Offset-shift + DBSCAN clustering → instance ids, wired into val (`_accumulate_panoptic`).
+- [x] PQ adapter (`panoptic/pq.py`) over official PanopticEval; PQ/PQ†/SQ/RQ/mIoU + lazy vendor.
+- [ ] **Vendor** `np_ioueval.py` (PRBonn) + run: **non-trivial PQ** on val seq 08 (needs cloud box).
 - **GATE 2:** non-trivial **PQ** on val (official evaluator). If not → debug heads/clustering.
 
 ## Week 5 · Eval + viz

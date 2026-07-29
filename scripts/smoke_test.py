@@ -16,12 +16,14 @@ from omegaconf import OmegaConf
 from src.data.collate import voxelize_collate
 from src.data.semantic_kitti import NUM_CLASSES, THING_TRAIN_IDS
 from src.lit_module import PanopticLit
+from src.panoptic.cluster import panoptic_from_offsets
 
 CFG = OmegaConf.create(
     {
         "task": "semantic",
         "model": {"name": "dummy", "in_channels": 4, "feat_channels": 96, "num_classes": NUM_CLASSES, "cr": 1.0},
-        "loss": {"ce": 1.0, "lovasz": 1.0, "center": 1.0, "offset": 1.0},
+        "loss": {"ce": 1.0, "lovasz": 1.0, "center": 1.0, "offset": 1.0, "center_sigma": 1.0},
+        "cluster": {"eps": 0.6, "min_points": 20},
         "data": {"voxel": 0.05},
     }
 )
@@ -68,7 +70,36 @@ def main() -> None:
     print(f"[val] mIoU={miou:.4f} (random preds, sanity only) per_class_len={len(iou)}")
     assert len(iou) == NUM_CLASSES and np.isfinite(miou)
 
-    print("\nSMOKE OK — collate / heads / lovász / CE / IoU verified on", device)
+    # ---- GATE 2: panoptic path (instance targets + loss + clustering; PQ needs vendored eval) ----
+    pcfg = OmegaConf.merge(CFG, {"task": "panoptic"})
+    pmodel = PanopticLit(pcfg).to(device)
+    pmodel.train()
+    out = pmodel(batch)
+    off_gt, ctr_gt, thing = pmodel._instance_targets(batch)
+    assert off_gt.shape == (batch["sem"].shape[0], 3) and ctr_gt.shape == batch["sem"].shape
+    assert thing.any(), "fake scan should contain thing points"
+    # non-thing center_gt is exactly 0; some thing points fire (>0). (Random scans scatter instance
+    # points across the whole volume, so far points underflow to 0 — real instances are compact.)
+    assert ctr_gt[~thing].abs().sum() == 0 and ctr_gt[thing].max() > 0, "center_gt confined to things"
+    sloss, _ = pmodel._semantic_loss(out, batch)
+    iloss, ilogs = pmodel._instance_loss(out, batch)
+    total = sloss + iloss
+    total.backward()
+    pgrad = sum(p.grad.abs().sum().item() for p in pmodel.parameters() if p.grad is not None)
+    print(f"[panoptic] center={ilogs['center']:.4f} offset={ilogs['offset']:.4f} "
+          f"thing_pts={int(thing.sum())} grad_sum={pgrad:.2f}")
+    assert torch.isfinite(total) and pgrad > 0
+
+    # offset-shift clustering on one scan -> instance ids
+    m = (batch["pbatch"] == 0).cpu().numpy()
+    inst_p = panoptic_from_offsets(
+        batch["xyz"].cpu().numpy()[m], batch["sem"].cpu().numpy()[m],
+        out["offset"].detach().cpu().numpy()[m], eps=pcfg.cluster.eps, min_points=pcfg.cluster.min_points,
+    )
+    print(f"[cluster] scan0 -> {int(inst_p.max())} instances over {int((inst_p > 0).sum())} thing pts")
+    assert inst_p.shape == (m.sum(),)
+
+    print("\nSMOKE OK — semantic + panoptic(instance loss/targets/cluster) verified on", device)
 
 
 if __name__ == "__main__":
