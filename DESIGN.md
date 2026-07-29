@@ -29,10 +29,54 @@ embeddings + MeanShift are sensitive to margin/bandwidth and slow to converge �
 **ablation** to show we understand the alternative.
 
 **Why one backbone, two heads:** matches the "extend a semantic model to panoptic" story and is
-cheap on a 24 GB GPU (no second network).
+cheap on a single 24 GB GPU (no second network).
 
-## 3. Compute plan (local 24 GB, 3090/4090)
-Full SemanticKITTI is heavy, so we de-risk:
+## 2.1 Instance targets, losses & grouping (GATE 2)
+Notation: point `p` at `x_p ∈ ℝ³`; predicted semantic `ŷ_p`, center `ĥ_p ∈ [0,1]`, offset `ô_p ∈ ℝ³`.
+`T` = *thing* points (a point whose **GT** instance id > 0 and whose class is a thing class).
+
+**Targets** (`_instance_targets`). Instances are keyed by **(scan, instance-id)** so the same raw
+id in two scans of a batch never merges. For thing point `p` belonging to instance `k`:
+```
+centroid   c_k  = mean_{q∈k} x_q            # per-instance mean of xyz
+offset_gt  o*_p = c_k − x_p                 # points to the instance center
+center_gt  h*_p = exp( −‖o*_p‖² / 2σ² )     # Gaussian heatmap, σ = center_sigma (1.0 m)
+```
+Stuff / ignore points get `o* = 0`, `h* = 0` (center head regresses 0 away from thing centers).
+
+**Losses.** Total (task=panoptic) is semantic + instance:
+```
+L_sem = λ_ce · CE(ŷ, y; ignore=0) + λ_lov · Lovász-softmax(softmax(ŷ), y; ignore=0)
+L_ctr = MSE( ĥ , h* )                       # over ALL points (heatmap regression)
+L_off = (1/|T|) · Σ_{p∈T} ‖ ô_p − o*_p ‖₁   # L1, thing points only
+L     = L_sem + λ_ctr · L_ctr + λ_off · L_off
+```
+Offset is masked to `T` (stuff has no center); center is dense so the head learns "thing-ness".
+Weights `λ` and `σ` live in `configs/config.yaml (loss.*)`.
+
+**Grouping** (`panoptic_from_offsets`, inference, per scan). Shift each thing point to its predicted
+center and cluster **per predicted class**:
+```
+x'_p = x_p + ô_p                            # offset-shifted coords collapse toward centers
+for cls in thing classes:
+    idx = { p : ŷ_p = cls }                 # ≥ min_points, else skip
+    labels = DBSCAN(eps, min_samples=min_points).fit(x'_{idx})
+    each non-noise cluster → a new global instance id; DBSCAN noise (−1) → no instance
+```
+> Note: this baseline groups from **offset only** — the center head supplies auxiliary "thing-ness"
+> supervision and is the hook for the **center-NMS grouping ablation** (seed at heatmap peaks,
+> assign by nearest shifted center), not consumed by DBSCAN itself. Honest about what each head does.
+
+**Merge → panoptic label** `(semantic_id, instance_id)` per point:
+- **stuff** point → `(ŷ_p, 0)`.
+- **thing** point in a cluster → `(ŷ_p, cluster_id)`.
+- **thing** point left unclustered (noise / class below `min_points`) → `(ŷ_p, 0)` — semantic only,
+  no false instance. The official evaluator then scores it as an unmatched thing region.
+
+## 3. Compute plan (rented cloud GPU, 24 GB+)
+Dev is done on a small local box (12 GB, ~7 GB free) — code + a torchsparse-free **synthetic smoke
+test** (`scripts/smoke_test.py`) only. Real training runs on a **rented cloud GPU** (24 GB+ VRAM,
+~170 GB disk for velodyne+labels); the local box can't hold the ~80 GB dataset. So we de-risk:
 - voxel **0.05 m**, small batch (2–4 scans), **mixed precision (fp16)**, gradient accumulation.
 - **Gate 1 first**: reproduce SPVCNN *semantic* mIoU near published before touching instances —
   if this fails, nothing downstream matters.
@@ -42,9 +86,17 @@ Full SemanticKITTI is heavy, so we de-risk:
   res). Being explicit about the setting in the README costs no credibility; a broken run does.
 
 ## 4. Evaluation
-- **PQ / PQ† / SQ / RQ**: use SemanticKITTI's official panoptic evaluator (PRBonn
-  `semantic-kitti-api`) — do **not** reinvent (it has subtle IoU-matching + void handling).
-- **mIoU** for semantic (standard 19-class, ignore=0).
+Per class `c`, match predicted vs GT segments (same class, **IoU > 0.5** ⇒ unique TP):
+```
+SQ_c = (Σ_{(p,g)∈TP} IoU(p,g)) / |TP|                    # avg IoU of matched segments
+RQ_c = |TP| / ( |TP| + ½|FP| + ½|FN| )                   # detection F1
+PQ_c = SQ_c · RQ_c ;   PQ = mean_c PQ_c
+PQ†  = ( Σ_{c∈thing} PQ_c + Σ_{c∈stuff} IoU_c ) / (|thing|+|stuff|)   # stuff scored by IoU
+```
+- Use SemanticKITTI's **official** evaluator (PRBonn `semantic-kitti-api` → `PanopticEval`) — do
+  **not** reinvent the >0.5 matching + void handling. `panoptic/pq.py` is a thin adapter
+  (accumulate per scan → `getPQ` / `getSemIoU`); it computes PQ† from the per-class PQ/IoU vectors.
+- **mIoU** for semantic (standard 19-class, ignore=0), from the same evaluator or `IoUMeter`.
 - Report **FPS / latency** (inference on one GPU) — panoptic is only useful if it runs.
 
 ## 5. Research engineering (the differentiator)
@@ -67,9 +119,12 @@ make the repo legible at a glance.
 | Semantic repro doesn't match | Gate 1 checkpoint; adapt spvnas hyperparams before adding heads |
 | PQ implementation bugs | wrap official evaluator, unit-test on toy scene |
 | Clustering unstable | start DBSCAN on shifted coords; add dynamic-shift only if needed |
-| 24 GB OOM | fp16 + grad-accum + smaller voxel/batch + reduced setting |
+| GPU OOM | fp16 + grad-accum + smaller voxel/batch + reduced setting |
+| dataset won't fit local box | dev = synthetic smoke test; train on cloud GPU w/ ~170 GB disk |
 
 ## 8. Open decisions (revisit as we build)
 - Backbone depth (SPVCNN cr=1.0 vs 0.5 for speed/VRAM).
 - Clustering: DBSCAN vs learned dynamic-shift (DS-Net) — ablate.
+- Center head use: auxiliary supervision only vs center-NMS seed grouping (§2.1 note) — ablate.
+- `center_sigma` (heatmap width) and DBSCAN `eps`/`min_points` — tune on val.
 - Instance grouping over full scan vs tiles (memory).
