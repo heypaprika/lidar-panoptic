@@ -1,0 +1,14 @@
+# core
+torch>=2.1
+numpy
+# torchsparse installed separately from source (see README): needs libsparsehash-dev
+# training infra
+pytorch-lightning>=2.1
+hydra-core>=1.3
+wandb
+# panoptic clustering / metrics
+scikit-learn
+# visualization
+open3d
+# panoptic eval reference (or vendor PRBonn/semantic-kitti-api)
+# pip install git+https://github.com/PRBonn/semantic-kitti-api.git

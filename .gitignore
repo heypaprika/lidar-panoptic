@@ -1,0 +1,15 @@
+__pycache__/
+*.py[cod]
+.venv/
+env/
+runs/
+wandb/
+outputs/
+*.ckpt
+*.pth
+# data is huge — never commit
+dataset/
+data/
+*.bin
+*.label
+.DS_Store
