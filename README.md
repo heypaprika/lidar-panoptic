@@ -17,15 +17,24 @@ official **Panoptic Quality (PQ)** and **mIoU**.
 - **Official eval**: PQ / PQ† / SQ / RQ via SemanticKITTI's panoptic evaluator; mIoU for semantic.
 
 ## Status
-Scaffold. Build order and go/no-go gates in `TASKS.md`. Foundation (data, label map, heads,
-config, docs) is in; backbone wiring + Lightning training loop + PQ wrapper are the next tasks.
+Code complete through Week 5 (data · MinkUNet/SPVCNN backbone · semantic+instance heads · losses ·
+offset-shift DBSCAN · official-PQ adapter · eval with per-class table + FPS · Open3D viz). The full
+pipeline is verified on synthetic data via `scripts/smoke_test.py` (torch 2.4 + CUDA). Remaining is
+execution on a rented cloud GPU: torchsparse `# VERIFY`, reproduce mIoU (GATE 1), PQ (GATE 2). See
+`TASKS.md` for gates and `DESIGN.md` for the math.
 
-## Results (fill in)
+## Results (fill in on the cloud run)
+Numbers below are placeholders; the reference row is the published ballpark to compare against
+(val seq 08). A **reduced setting** (subsequence / fewer epochs / lower res) is fine if labeled.
+
 | Setting | mIoU | PQ | PQ† | SQ | RQ | FPS |
 |---|---|---|---|---|---|---|
 | SPVCNN semantic (repro) | — | — | — | — | — | — |
-| + center/offset panoptic | — | — | — | — | — | — |
-| ablation: embedding+MeanShift | — | — | — | — | — | — |
+| + center/offset panoptic (GATE 2) | — | — | — | — | — | — |
+| _reference (published, approx)_ | _~63_ | _~55–58_ | — | — | — | — |
+
+Reference points: SPVCNN semantic mIoU ≈ 63 (mit-han-lab/spvnas); bottom-up panoptic PQ ≈ 55–58
+(DS-Net, Panoptic-PolarNet). Ablations and their tables live in [`ablations.md`](ablations.md).
 
 ## Setup
 
@@ -51,9 +60,9 @@ PYTHONPATH=. python -m scripts.smoke_test   # synthetic: collate/heads/losses/mI
 ## Run
 ```bash
 python -m src.train task=semantic model=minkunet     # GATE 1: reproduce mIoU (seq 08 val)
-python -m src.train model=spvcnn data.voxel=0.05 trainer.precision=16-mixed
-python -m src.eval  ckpt=runs/best.ckpt              # PQ / mIoU
-python -m scripts.viz ckpt=runs/best.ckpt seq=08 frame=000000   # Open3D
+python -m src.train task=panoptic model=spvcnn data.voxel=0.05   # GATE 2: +center/offset
+python -m src.eval  ckpt=runs/best.ckpt task=panoptic           # PQ/mIoU + per-class table + FPS
+python -m scripts.viz ckpt=runs/best.ckpt viz.frame=000100 viz.save=demo/   # Open3D PNGs
 ```
 
 ## Upstream to adapt (semantic gate)

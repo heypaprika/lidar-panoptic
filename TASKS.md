@@ -37,12 +37,14 @@ A gate that fails **blocks** the next phase — fix it before moving on.
 - [ ] If blocked: ship as **designed experiment + preliminary numbers** in README.
 
 ## Week 8 · Ship
-- [ ] Results tables (mIoU/PQ + ablation: center-offset vs embedding+MeanShift).
+- [x] Results-table + ablations scaffolding: `README.md` table + `ablations.md` (hypotheses set).
+- [ ] Fill results/ablation numbers from the cloud run.
 - [ ] README polish, architecture figure, **demo video/gif**, short tech blog.
 - [ ] Dockerfile reproduces train/eval.
 
-## Ablations to run (pick ≥1)
-- center-offset **vs** instance-embedding+MeanShift.
-- clustering: DBSCAN **vs** dynamic-shift (DS-Net).
-- backbone width (SPVCNN cr 1.0 vs 0.5): PQ vs FPS tradeoff.
-- voxel size 0.05 vs 0.10 m.
+## Ablations to run (pick ≥1) — hypotheses pre-registered in `ablations.md`
+- A1 center-offset **vs** instance-embedding+MeanShift.
+- A2 clustering: DBSCAN **vs** dynamic-shift (DS-Net).
+- A3 center head: aux-only **vs** center-NMS grouping.
+- A4 backbone width (SPVCNN cr 1.0 vs 0.5): PQ vs FPS tradeoff.
+- A5 voxel size 0.05 vs 0.10 m.
