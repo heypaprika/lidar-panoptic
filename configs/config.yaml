@@ -19,3 +19,8 @@ loss:
 cluster:
   eps: 0.6              # DBSCAN on offset-shifted coords (m)
   min_points: 20
+ckpt: null             # checkpoint path for eval.py / scripts.viz
+viz:
+  seq: "08"
+  frame: "000000"
+  save: null           # dir to write offscreen PNGs; null = interactive Open3D windows

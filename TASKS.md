@@ -26,9 +26,10 @@ A gate that fails **blocks** the next phase — fix it before moving on.
 - **GATE 2:** non-trivial **PQ** on val (official evaluator). If not → debug heads/clustering.
 
 ## Week 5 · Eval + viz
-- [ ] Official PQ / PQ† / SQ / RQ wrapper; per-class table.
-- [ ] Open3D renderer: semantic vs panoptic (instance-colored) side by side; demo frames.
-- [ ] Latency/FPS measurement.
+- [x] Eval entrypoint (`src/eval.py`): ckpt → val mIoU + (panoptic) PQ/PQ†/SQ/RQ via the val loop.
+- [x] Open3D renderer (`scripts/viz.py` + `viz/render.py`): semantic vs panoptic, interactive or
+      offscreen PNG (headless). Needs a ckpt to produce demo frames.
+- [ ] Per-class PQ/IoU table (extend eval printout) + latency/FPS measurement.
 
 ## Week 6–7 · Sim-to-Real (STRETCH — droppable)
 - [ ] CARLA synthetic LiDAR + auto label export → point-cloud dataset.
