@@ -36,6 +36,10 @@ def voxelize_collate(samples: list[dict], voxel: float, in_channels: int = 4) ->
             else s["feat"].astype(np.float32)
         )
         vc = np.floor(xyz / voxel).astype(np.int32)  # [Np,3]
+        # torchsparse expects non-negative voxel coords; KITTI has points behind/left/below the
+        # sensor (negative xyz). Shift each scan to its own min so the sparse-conv kernel maps stay
+        # valid at deep downsampling levels. Geometry is unchanged (clustering uses float xyz).
+        vc -= vc.min(axis=0, keepdims=True)
         uniq, first_idx, inverse = np.unique(vc, axis=0, return_index=True, return_inverse=True)
         inverse = inverse.reshape(-1)
 
