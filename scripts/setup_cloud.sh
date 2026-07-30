@@ -15,6 +15,9 @@ $SUDO apt-get update -qq
 $SUDO apt-get install -y --no-install-recommends libsparsehash-dev git ninja-build libgl1 wget unzip
 
 echo "==> python deps"
+# system python often ships blinker via distutils, which pip can't cleanly uninstall to upgrade.
+# install a fresh pip-managed copy first (only blinker) so the requirements install doesn't choke.
+pip install --no-cache-dir --ignore-installed blinker
 pip install --no-cache-dir -r requirements.txt
 
 echo "==> torchsparse v2.1 (from source; builds for the detected GPU arch)"
