@@ -51,7 +51,7 @@ class MinkUNetBackbone(nn.Module):
 
     def forward(self, batch: dict) -> torch.Tensor:
         # batch tensors are already on the module device (Lightning moves dict tensors).
-        x = SparseTensor(feats=batch["feats"], coords=batch["coords"])  # VERIFY: coords [N,4]=(x,y,z,b)
+        x = SparseTensor(feats=batch["feats"], coords=batch["coords"])  # coords [N,4]=(b,x,y,z), torchsparse 2.x
         s = self.stem(x)
         e1, e2, e3 = self.enc1(s), None, None
         e2 = self.enc2(e1)

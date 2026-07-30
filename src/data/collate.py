@@ -5,7 +5,7 @@ version — only the backbone touches torchsparse. Predictions are made at voxel
 back to points via `inverse` for point-level loss / eval.
 
 Returned batch:
-  coords   [Vtot, 4] int   (x, y, z, batch)   # torchsparse SparseTensor coords — verify col order for your version
+  coords   [Vtot, 4] int   (batch, x, y, z)   # torchsparse 2.x SparseTensor order (batch FIRST)
   feats    [Vtot, Cin] f32 (representative point feature per voxel)
   inverse  [Ptot] long      each point -> its global voxel row
   sem      [Ptot] long      0..19
@@ -45,7 +45,8 @@ def voxelize_collate(samples: list[dict], voxel: float, in_channels: int = 4) ->
 
         nv = uniq.shape[0]
         bcol = np.full((nv, 1), b, dtype=np.int32)
-        coords_all.append(np.concatenate([uniq, bcol], axis=1))  # [nv,4]
+        # torchsparse 2.x expects coords as [batch, x, y, z] (batch FIRST). (v1.4 used batch last.)
+        coords_all.append(np.concatenate([bcol, uniq], axis=1))  # [nv,4] = (b,x,y,z)
         feats_all.append(pfeat[first_idx])                       # representative feat per voxel
 
         inverse_all.append(inverse + vox_offset)                 # -> global voxel rows

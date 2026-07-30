@@ -29,7 +29,7 @@ def _stride(t):
 
 
 def _show(t, name: str) -> None:
-    c = t.C[:, :3]
+    c = t.C[:, 1:4]  # coords are [batch, x, y, z] in torchsparse 2.x
     print(f"{name:6s} nnz={t.F.shape[0]:>7d}  Cshape={tuple(t.C.shape)}  "
           f"stride={_stride(t)}  cmin={int(c.min())} cmax={int(c.max())}")
 
@@ -43,8 +43,8 @@ def main() -> None:
     b = voxelize_collate([ds[0]], voxel=0.05, in_channels=4)
     b = {k: (v.cuda() if torch.is_tensor(v) else v) for k, v in b.items()}
     print(f"scan points={b['xyz'].shape[0]} voxels={b['coords'].shape[0]} "
-          f"coord min={int(b['coords'][:, :3].min())} max={int(b['coords'][:, :3].max())} "
-          f"(min>=0 means collate fix present)")
+          f"coord min={int(b['coords'][:, 1:4].min())} max={int(b['coords'][:, 1:4].max())} "
+          f"(coords are [b,x,y,z]; min>=0 means collate fix present)")
 
     m = MinkUNetBackbone().cuda().eval()
     x = SparseTensor(feats=b["feats"], coords=b["coords"])
