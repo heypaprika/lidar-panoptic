@@ -7,9 +7,9 @@ wandb/
 outputs/
 *.ckpt
 *.pth
-# data is huge — never commit
-dataset/
-data/
+# data is huge — never commit (anchored to repo root so it doesn't eat src/data, configs/data)
+/dataset/
+/data/
 *.bin
 *.label
 .DS_Store

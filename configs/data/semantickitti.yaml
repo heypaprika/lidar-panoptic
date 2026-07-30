@@ -1,0 +1,5 @@
+name: semantickitti
+root: /path/to/SemanticKITTI    # dataset/sequences/{seq}/{velodyne,labels}
+voxel: 0.05                     # meters
+batch_size: 2
+num_workers: 6
