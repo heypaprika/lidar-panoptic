@@ -1,5 +1,10 @@
 # 희소 포인트클라우드 기반 Panoptic Segmentation (SemanticKITTI)
 
+> 이미지·포인트클라우드 양쪽에서 다뤄온 visual perception 경험을 **완결된 3D LiDAR panoptic 시스템**으로
+> 통합한 프로젝트다. 논문 재현을 넘어, semantic segmentation·instance grouping·sparse convolution·대규모
+> 평가가 하나의 end-to-end perception 파이프라인으로 맞물리는 과정을 직접 구현하고 검증했다. 특정 modality에
+> 갇힌 전문성이 아니라, **연구 아이디어를 작동하는 시스템으로 옮기는 확장 능력**을 보이는 데 목적이 있다.
+
 sparse-voxel semantic 백본(spconv MinkUNet U-Net)에 **center + offset** instance 헤드를 더해 LiDAR
 panoptic segmentation을 수행한다. 공식 **PQ / PQ† / SQ / RQ**와 **mIoU**로 평가한다.
 
