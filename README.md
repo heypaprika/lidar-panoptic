@@ -71,6 +71,10 @@ python -m src.eval ckpt=<best.ckpt> task=panoptic oracle=instance data.root=$DAT
 `scripts/viz`가 semantic / instance / panoptic 렌더를 만든다. 데모 프레임과 GIF는 학습 후 여기에 추가한다.
 <!-- ![qualitative](demo/panoptic.gif) -->
 
+**학습 곡선** (train loss ↓ / val mIoU ↑) — CSVLogger의 `metrics.csv`에서 생성:
+`python -m scripts.plot_metrics <metrics.csv> demo/training_curves.png`
+<!-- ![curves](demo/training_curves.png) -->
+
 ## Failure analysis
 정성·정량 실패 모드를 [`docs/failure-analysis.md`](docs/failure-analysis.md)에 정리한다(학습 후 그림 포함).
 관찰 예정 항목(가설):
