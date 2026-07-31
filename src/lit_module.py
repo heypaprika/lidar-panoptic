@@ -29,6 +29,9 @@ class PanopticLit(pl.LightningModule):
         self.heads = PanopticHeads(cfg.model.feat_channels, NUM_CLASSES)
         self.register_buffer("thing", torch.tensor(sorted(THING_TRAIN_IDS)))
         self.sigma = float(getattr(cfg.loss, "center_sigma", 1.0))
+        # oracle debugging: 'none' | 'semantic' (GT sem → isolate clustering) | 'instance'
+        # (GT instance ids → isolate semantic). Decomposes PQ error into semantic vs grouping.
+        self.oracle = str(cfg.get("oracle", "none"))
         self.val_iou = IoUMeter(NUM_CLASSES, ignore=IGNORE_ID)
         # official PQ evaluator is heavy + needs the vendored eval; only build it for panoptic.
         self.pq = None
@@ -99,13 +102,20 @@ class PanopticLit(pl.LightningModule):
         offset = out["offset"].detach().cpu().numpy()
         sem_p, sem_g = pred.cpu().numpy(), batch["sem"].cpu().numpy()
         inst_g, pbatch = batch["inst"].cpu().numpy(), batch["pbatch"].cpu().numpy()
+        # oracle='semantic': feed GT semantic to clustering + scorer (perfect classes) → the PQ ceiling
+        #   our offset+DBSCAN grouping can reach. oracle='instance': use GT instance ids as prediction
+        #   (perfect grouping) → the PQ ceiling our semantics allow.
+        sem_use = sem_g if self.oracle == "semantic" else sem_p
         for b in np.unique(pbatch):                                   # PQ is per-scan
             m = pbatch == b
-            inst_p = panoptic_from_offsets(
-                xyz[m], sem_p[m], offset[m],
-                eps=self.cfg.cluster.eps, min_points=self.cfg.cluster.min_points,
-            )
-            self.pq.add(sem_p[m], inst_p, sem_g[m], inst_g[m])
+            if self.oracle == "instance":
+                inst_p = inst_g[m]                                    # perfect grouping
+            else:
+                inst_p = panoptic_from_offsets(
+                    xyz[m], sem_use[m], offset[m],
+                    eps=self.cfg.cluster.eps, min_points=self.cfg.cluster.min_points,
+                )
+            self.pq.add(sem_use[m], inst_p, sem_g[m], inst_g[m])
 
     def on_validation_epoch_end(self):
         _, miou = self.val_iou.compute()

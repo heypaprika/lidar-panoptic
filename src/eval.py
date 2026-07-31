@@ -82,7 +82,9 @@ def main(cfg: DictConfig) -> None:
                 print(f"  ...{n_scans} scans")
 
     iou, miou = model.val_iou.compute()
-    print(f"\n=== {cfg.task} eval on val ({n_scans} scans) ===")
+    oracle = str(cfg.get("oracle", "none"))
+    tag = cfg.task + (f" [oracle={oracle}]" if oracle != "none" else "")
+    print(f"\n=== {tag} eval on val ({n_scans} scans) ===")
     print(f"mIoU: {miou * 100:.1f}%")
     if panoptic and model.pq is not None:
         s = model.pq.summary()

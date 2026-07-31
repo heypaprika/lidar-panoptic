@@ -3,6 +3,16 @@
 핵심 = Week 1–5. 스트레치(sim-to-real) = Week 6–7. 마무리 = Week 8.
 실패한 gate는 다음 단계를 **막습니다** — 넘어가기 전에 고칩니다.
 
+## 지금 우선순위 — 코어 완결 (범위 확장보다 먼저)
+범위를 넓히기(4D·sim-to-real) 전에, 아래 스토리를 먼저 끝낸다:
+1. semantic baseline **mIoU** 확정 (GATE 1)
+2. panoptic **PQ** 확정 (GATE 2)
+3. **oracle 디버깅**(oracle=semantic/instance)으로 PQ 오차 분해
+4. **ablation 1개** 이상 (offset/center 제거, eps sweep, voxel 등)
+5. **qualitative + failure case** (viz + `docs/failure-analysis.md`)
+
+4D 시간축 확장은 설계(`docs/consistency-4d.md`)로만 두고, 구현은 코어 완결 이후.
+
 ## Week 1–2 · Semantic 백본 재현  ⛔ GATE 1
 - [x] SemanticKITTI 데이터셋 + label map (`src/data/`) — remap/instance/mIoU **단위 검증**.
 - [x] Voxelize + collate (numpy, 버전 무관) + DataModule. batch-first 좌표, 비음수 시프트, 범위 crop.

@@ -26,8 +26,9 @@ points (x,y,z,remission) → voxelize(0.05 m) → spconv MinkUNet U-Net → 점�
 타깃·손실·그룹핑·merge의 정확한 수식은 [`DESIGN.md`](DESIGN.md) §2.1, 평가 수식은 §4.
 
 ## Results (val seq 08)
-> 축소 설정(subsequence / voxel / epoch)으로 학습했으며, 사용한 설정을 표에 명시한다. 공개 baseline은
-> **재학습이 아니라 논문 공개 수치를 인용**한 것으로, 직접 비교 대상이 아니라 위치 파악용이다.
+**실험 설정** (측정 시 사실 그대로 기입): train 시퀀스=`…`, voxel=`…` m, epoch=`…`, batch=`…`, precision=32.
+공개 baseline은 **재학습이 아니라 논문 공개 수치를 인용**한 값이라 직접 비교 대상이 아니다. 설정 차이만
+사실로 적고, 격차의 원인 해석은 결과가 나온 뒤 Discussion에서 근거를 갖고 한다.
 
 **진행형 기여 분해(progressive) — 각 헤드가 지표에 미치는 영향**
 
@@ -49,6 +50,22 @@ points (x,y,z,remission) → voxelize(0.05 m) → spconv MinkUNet U-Net → 점�
 
 DS-Net·Panoptic-PolarNet이 우리와 같은 bottom-up 계열이라 가장 가까운 비교 대상이다. (참고: 최신
 Panoptic-PHNet test PQ 61.5.) 수치 출처는 아래 참고문헌.
+
+### Oracle 디버깅 — PQ 오차를 semantic vs grouping으로 분해
+구성 요소를 GT로 대체해 오차의 출처를 분리한다.
+
+| 설정 | PQ | 무엇을 재나 |
+|---|---|---|
+| full (예측 semantic + 예측 grouping) | _측정중_ | 실제 성능 |
+| `oracle=semantic` (GT semantic + 우리 offset/DBSCAN) | _측정중_ | grouping이 낼 수 있는 PQ 상한 |
+| `oracle=instance` (예측 semantic + GT instance) | _측정중_ | semantic이 허용하는 PQ 상한 |
+
+읽는 법: **full ↔ oracle=semantic** 격차 = *grouping/offset* 기여, **full ↔ oracle=instance** 격차 =
+*semantic* 기여. 어느 쪽이 병목인지 수치로 말할 수 있다.
+```bash
+python -m src.eval ckpt=<best.ckpt> task=panoptic oracle=semantic data.root=$DATA
+python -m src.eval ckpt=<best.ckpt> task=panoptic oracle=instance data.root=$DATA
+```
 
 ## Qualitative
 `scripts/viz`가 semantic / instance / panoptic 렌더를 만든다. 데모 프레임과 GIF는 학습 후 여기에 추가한다.

@@ -23,6 +23,7 @@ cluster:
   eps: 0.6              # DBSCAN on offset-shifted coords (m)
   min_points: 20
 ckpt: null             # checkpoint path for eval.py / scripts.viz
+oracle: none           # panoptic debug: none | semantic (GT sem) | instance (GT inst) — PQ 오차 분해
 viz:
   seq: "08"
   frame: "000000"
