@@ -128,3 +128,23 @@ make the repo legible at a glance.
 - Center head use: auxiliary supervision only vs center-NMS seed grouping (§2.1 note) — ablate.
 - `center_sigma` (heatmap width) and DBSCAN `eps`/`min_points` — tune on val.
 - Instance grouping over full scan vs tiles (memory).
+
+## 9. Extension: temporal / multi-view consistency (where this goes next)
+This repo does **single-scan** panoptic. The natural next step — and the one that matters for
+spatial-intelligence / HD-mapping perception — is making instance identities **consistent across
+frames**, not re-segmented independently each scan.
+
+- **4D panoptic (LiDAR, temporal):** SemanticKITTI already defines a *4D panoptic* task — the same
+  instance must keep its id across consecutive scans. Our center+offset design extends cleanly:
+  register successive scans into a common frame (ego-motion / poses ship with KITTI), associate
+  instances across time by centroid proximity + offset flow, and add a light tracking/association
+  head. Metric moves from PQ to **LSTQ** (association + segmentation quality).
+- **Multi-view consistency (images):** the same principle in the multi-view image setting —
+  segment once, keep instances coherent across viewpoints via the shared 3D structure — is exactly
+  the direction of recent work like NAVER LABS Europe's *PanSt3R* (multi-view-consistent panoptic
+  on a 3D reconstruction backbone). The bridge from here: our per-point instance embedding/offset is
+  the LiDAR analogue of enforcing cross-view instance agreement through reconstructed geometry.
+- **Why the current design transfers:** bottom-up center/offset is geometry-native (operates on
+  3D coordinates), so lifting it from one scan to a fused multi-scan / multi-view point set is an
+  association problem on top of the same heads — not a new architecture. That is the intended growth
+  path, and the reason the instance branch is kept modular.

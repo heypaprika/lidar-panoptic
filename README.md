@@ -1,82 +1,98 @@
 # Lightweight Panoptic Segmentation on Sparse Point Clouds
 
-LiDAR **panoptic segmentation** on SemanticKITTI, built by extending a sparse-voxel
-**semantic** backbone (MinkUNet-style U-Net on **spconv**) with lightweight **center + offset** instance
-heads (Panoptic-DeepLab / DS-Net style, bottom-up). Semantic backbone → per-point offset to
-instance center + center heatmap → shift & cluster → **panoptic output**, evaluated with the
-official **Panoptic Quality (PQ)** and **mIoU**.
+LiDAR **panoptic segmentation** on SemanticKITTI: a sparse-voxel **semantic** backbone
+(MinkUNet-style U-Net on **spconv**) extended with lightweight **center + offset** instance heads
+(bottom-up, Panoptic-DeepLab / DS-Net style). Semantic backbone → per-point offset to instance
+center + center heatmap → offset-shift & cluster → **panoptic output**, scored with the **official**
+Panoptic Quality (PQ) and mIoU.
 
-> Goal: show the jump from *"did semantic segmentation"* to *"extended a semantic backbone to
-> panoptic, end-to-end, with metrics, ablations, and reproducible research tooling."*
+<!-- DEMO: after `scripts.viz` writes demo/, put the hero image here (reviewers see this first):
+![semantic vs panoptic](demo/08_000100_panoptic.png)
+-->
 
-## Why this design
-- **Reuse, don't rebuild**: reproduce a known SPVCNN semantic baseline first (go/no-go gate),
-  then add instance heads. See `DESIGN.md`.
-- **Center + offset (not embedding + MeanShift)**: bottom-up regression is far more stable to
-  train and to reach a non-trivial PQ; embedding + clustering is kept as an *ablation*.
-- **Official eval**: PQ / PQ† / SQ / RQ via SemanticKITTI's panoptic evaluator; mIoU for semantic.
+> Goal: demonstrate the jump from *"did semantic segmentation"* to *"extended a semantic backbone to
+> panoptic end-to-end — with metrics, ablations, and reproducible research tooling."*
 
-## Status
-Code complete through Week 5 (data · MinkUNet-style spconv backbone · semantic+instance heads · losses ·
-offset-shift DBSCAN · official-PQ adapter · eval with per-class table + FPS · Open3D viz). The full
-pipeline is verified on synthetic data via `scripts/smoke_test.py` (torch 2.4 + CUDA); the spconv
-backbone runs end-to-end on a real scan via `scripts/debug_backbone.py`. Remaining is the cloud run:
-reproduce mIoU (GATE 1), PQ (GATE 2). See `TASKS.md` for gates and `DESIGN.md` for the math.
-
-## Results (fill in on the cloud run)
-Numbers below are placeholders; the reference row is the published ballpark to compare against
-(val seq 08). A **reduced setting** (subsequence / fewer epochs / lower res) is fine if labeled.
+## Results (val seq 08)
+Reduced setting (labeled below) — the honest tradeoff for a short compute budget; the reference row
+is the published ballpark to compare against.
 
 | Setting | mIoU | PQ | PQ† | SQ | RQ | FPS |
 |---|---|---|---|---|---|---|
-| SPVCNN semantic (repro) | — | — | — | — | — | — |
-| + center/offset panoptic (GATE 2) | — | — | — | — | — | — |
+| semantic (spconv MinkUNet) | _tbd_ | — | — | — | — | _tbd_ |
+| + center/offset panoptic | — | _tbd_ | _tbd_ | _tbd_ | _tbd_ | _tbd_ |
 | _reference (published, approx)_ | _~63_ | _~55–58_ | — | — | — | — |
 
-Reference points: SPVCNN semantic mIoU ≈ 63 (mit-han-lab/spvnas); bottom-up panoptic PQ ≈ 55–58
-(DS-Net, Panoptic-PolarNet). Ablations and their tables live in [`ablations.md`](ablations.md).
+> Setting: <sequences / voxel / epochs>. Gap to published is primarily epochs + voxel resolution,
+> not method (fill the exact delta once measured). Reference: SPVCNN mIoU ≈ 63 (mit-han-lab/spvnas);
+> bottom-up panoptic PQ ≈ 55–58 (DS-Net, Panoptic-PolarNet). Ablations: [`ablations.md`](ablations.md).
+
+## Why this design
+- **Reuse, don't rebuild**: reproduce a semantic baseline first (a go/no-go gate), then add instance
+  heads on the same backbone. Gates in `TASKS.md`, math in `DESIGN.md`.
+- **Center + offset, not embedding + MeanShift**: bottom-up regression is dense, well-posed, and
+  stable to train → reaches non-trivial PQ fast; metric-learning embeddings are margin/bandwidth
+  sensitive → kept as an *ablation* (A1) to show the alternative is understood.
+- **Official eval, no hand-rolled PQ**: PQ / PQ† / SQ / RQ via SemanticKITTI's evaluator; the >0.5-IoU
+  matching and void handling are subtle and easy to get wrong.
+- **Latency reported**: panoptic is only useful if it runs — eval prints network + end-to-end FPS.
+
+## Implemented here vs adapted
+Written for this repo (the engineering being demonstrated):
+- SemanticKITTI dataset + label remap, range crop, and pure-numpy voxelize/collate (version-robust,
+  batch-first coords, non-negative shift) — `src/data/`.
+- spconv MinkUNet U-Net wired for per-point output (devoxelize), Native algo — `src/models/backbone.py`.
+- Semantic (CE + Lovász) and **instance targets/losses** (per-(scan,inst) centroid → offset_gt,
+  Gaussian center_gt; MSE + masked L1) — `src/lit_module.py`, `src/losses.py`.
+- Offset-shift **DBSCAN** clustering → panoptic merge — `src/panoptic/cluster.py`.
+- PQ **adapter** over the official evaluator, incl. PQ† — `src/panoptic/pq.py`.
+- Eval with per-class table + FPS, Open3D viz, Hydra/Lightning/Docker infra, gate-based plan.
+
+Adapted / external (dependencies, not claimed as original):
+- **spconv** (sparse conv kernels); **PRBonn/semantic-kitti-api** `PanopticEval` (PQ math, vendored).
+- Architecture patterns: Panoptic-DeepLab / DS-Net (center+offset); MinkUNet (backbone shape).
+- SemanticKITTI `learning_map` (raw→train class ids).
+
+## Status
+Pipeline verified end-to-end and **training converges** on real data (semantic mIoU climbing on
+val 08). Synthetic smoke test (`scripts/smoke_test.py`) and a real-scan backbone check
+(`scripts/debug_backbone.py`) both pass. Remaining: finish the reduced-setting runs and fill the
+numbers above (GATE 1 mIoU → GATE 2 PQ).
 
 ## Setup
-
-Training targets a **rented cloud GPU** (24GB+ VRAM, ~170GB disk). Two paths:
+Training targets a **rented cloud GPU** (24GB+ VRAM, ~170GB disk). spconv ships prebuilt wheels — no
+source build.
 
 ```bash
-# A) Docker (reproducible):
-docker build -f docker/Dockerfile -t panoptic .
-
-# B) Bare box with sudo (vast.ai / runpod / lambda cuda-devel image):
-bash scripts/setup_cloud.sh      # pip deps incl. spconv wheel (no build) + smoke test
-
-# data — SemanticKITTI velodyne+labels (~80GB), then point the config at it:
-bash scripts/download_semantickitti.sh /data/semantickitti
-#   -> edit configs/data/semantickitti.yaml  root: /data/semantickitti/dataset
+# A) Docker:  docker build -f docker/Dockerfile -t panoptic .
+# B) Bare CUDA box (sudo):
+bash scripts/setup_cloud.sh                          # pip deps incl. spconv wheel + smoke test
+bash scripts/download_semantickitti.sh /data/semantickitti   # ~80GB velodyne+labels
+#   -> set configs/data/semantickitti.yaml  root: /data/semantickitti/dataset
 ```
-
-No GPU/data? Verify the pipeline without spconv or the dataset:
-```bash
-PYTHONPATH=. python -m scripts.smoke_test   # synthetic: collate/heads/losses/mIoU
-```
+No GPU/data? `PYTHONPATH=. python -m scripts.smoke_test` verifies the pipeline synthetically.
 
 ## Run
 ```bash
-python -m src.train task=semantic model=minkunet     # GATE 1: reproduce mIoU (seq 08 val)
-python -m src.train task=panoptic model=spvcnn data.voxel=0.05   # GATE 2: +center/offset
-python -m src.eval  ckpt=runs/best.ckpt task=panoptic           # PQ/mIoU + per-class table + FPS
-python -m scripts.viz ckpt=runs/best.ckpt viz.frame=000100 viz.save=demo/   # Open3D PNGs
-```
+DATA=/data/semantickitti/dataset
+python -m src.train task=semantic model=minkunet data.root=$DATA          # GATE 1: mIoU
+wget -O src/panoptic/np_ioueval.py \
+  https://raw.githubusercontent.com/PRBonn/semantic-kitti-api/master/auxiliary/np_ioueval.py
+python -m src.train task=panoptic model=minkunet data.root=$DATA          # GATE 2: +center/offset
+python -m src.eval  ckpt=<best.ckpt> task=panoptic data.root=$DATA        # PQ/mIoU + per-class + FPS
+python -m scripts.viz ckpt=<best.ckpt> viz.frame=000100 viz.save=demo/ data.root=$DATA
 
-## Upstream to adapt (semantic gate)
-- Backbone: MinkUNet-style U-Net on **spconv** (traub/spconv). SPVCNN upgrade: adapt mit-han-lab/spvnas.
-- Panoptic eval reference: **PRBonn/semantic-kitti-api** (`evaluate_panoptic`).
+# reduced setting for a short budget (faster GATE numbers; label it in Results):
+python -m src.train task=semantic model=minkunet data.root=$DATA \
+    data.voxel=0.10 trainer.max_epochs=15 trainer.limit_train_batches=0.5
+```
 
 ## Layout
 ```
-configs/      Hydra (data / model / train)
-src/data/     SemanticKITTI dataset + label maps (panoptic: semantic + instance)
-src/models/   backbone wrapper + semantic/offset/center heads
-src/panoptic/ offset-shift clustering + PQ eval
-src/viz/      Open3D rendering
-scripts/      train/eval/infer/seed helpers
-docker/       reproducible env
-DESIGN.md     technical decisions & tradeoffs   TASKS.md  8-week plan w/ gates
+configs/      Hydra (data / model / trainer)
+src/data/     SemanticKITTI dataset + label maps + voxelize/collate
+src/models/   spconv backbone + semantic/center/offset heads
+src/panoptic/ offset-shift clustering + official-PQ adapter
+src/viz/      Open3D rendering            scripts/  train/eval/viz + smoke/debug helpers
+DESIGN.md     decisions, math & tradeoffs   TASKS.md  plan w/ go/no-go gates   ablations.md
 ```

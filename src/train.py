@@ -30,6 +30,9 @@ def main(cfg: DictConfig) -> None:
         precision=cfg.trainer.precision,
         accumulate_grad_batches=cfg.trainer.accumulate_grad_batches,
         devices=cfg.trainer.devices,
+        limit_train_batches=cfg.trainer.get("limit_train_batches", 1.0),
+        limit_val_batches=cfg.trainer.get("limit_val_batches", 1.0),
+        check_val_every_n_epoch=cfg.trainer.get("check_val_every_n_epoch", 1),
         callbacks=[ckpt, LearningRateMonitor(logging_interval="step")],
     )
     trainer.fit(model, datamodule=dm)
