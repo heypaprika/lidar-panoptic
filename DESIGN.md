@@ -1,7 +1,6 @@
 # DESIGN — 희소 포인트클라우드 Panoptic Segmentation
 
-이 문서는 **결정과 트레이드오프**를 기록합니다 — "만들 줄 아는 사람"과 "돌려만 본 사람"을 가르는, 리뷰어가
-실제로 읽는 부분입니다.
+이 문서는 아키텍처·학습·평가에 대한 **설계 결정과 트레이드오프**를 기록합니다.
 
 ## 1. 문제 정의
 SemanticKITTI panoptic = 점별 **semantic class**(19 + ignore) **+ instance id**(8개 *thing* 클래스:
@@ -25,10 +24,10 @@ merge: stuff = semantic; thing = (semantic argmax) × (cluster id)  → PANOPTIC
 ```
 **center+offset(Panoptic-DeepLab / DS-Net)을 embedding+MeanShift보다 택한 이유:** 회귀 타깃이 조밀하고
 잘 정의돼 있어 학습이 안정적이고 쓸 만한 PQ에 빨리 도달합니다. metric-learning embedding + MeanShift는
-margin/bandwidth에 민감하고 수렴이 느려 **ablation**으로만 남겨 대안을 이해하고 있음을 보입니다.
+margin/bandwidth에 민감하고 수렴이 느려 **ablation**으로 남겨 두 접근을 직접 비교한다.
 
-**백본 하나에 헤드 둘인 이유:** "semantic 모델을 panoptic으로 확장한다"는 서사에 맞고, 단일 24 GB GPU에서
-값싸게 돌아갑니다(두 번째 네트워크가 없음).
+**백본 하나에 헤드 둘인 이유:** semantic 백본을 그대로 재사용해 panoptic으로 확장하므로 두 번째 네트워크가
+없어 단일 24 GB GPU에서 값싸게 돌아갑니다.
 
 ## 2.1 Instance 타깃·손실·그룹핑 (GATE 2)
 표기: 점 `p`의 좌표 `x_p ∈ ℝ³`, 예측 semantic `ŷ_p`, center `ĥ_p ∈ [0,1]`, offset `ô_p ∈ ℝ³`.
@@ -64,7 +63,8 @@ for cls in thing classes:
 ```
 > 참고: 이 baseline은 **offset만으로** 그룹핑합니다 — center 헤드는 보조 "thing-ness" supervision을 주고,
 > **center-NMS 그룹핑 ablation**(heatmap peak를 seed로, 가장 가까운 shifted center에 할당)의 훅입니다.
-> DBSCAN 자체는 center를 쓰지 않습니다. 각 헤드가 실제로 하는 일을 정직하게 구분합니다.
+> DBSCAN 자체는 center를 쓰지 않으므로, center 헤드의 역할(보조 supervision)과 offset 헤드의 역할
+> (그룹핑)을 분리해 둔다.
 
 **Merge → panoptic label** `(semantic_id, instance_id)`, 점별:
 - **stuff** 점 → `(ŷ_p, 0)`.
@@ -82,8 +82,8 @@ spconv 불필요)만 합니다. 실제 학습은 **대여 클라우드 GPU**(24 
   의미가 없다.
 - instance 헤드는 가벼워, 백본이 건강해진 뒤 함께 학습(옵션: semantic 체크포인트에서 warm-start 후 헤드만
   단기 학습).
-- 시간/VRAM이 부족하면 **축소 설정**(subsequence, 적은 epoch, 낮은 해상도)으로 학습·보고. README에 설정을
-  명시하는 건 신뢰를 깎지 않지만, 깨진 런은 깎는다.
+- 시간/VRAM이 부족하면 **축소 설정**(subsequence, 적은 epoch, 낮은 해상도)으로 학습하고, 사용한 설정을
+  결과와 함께 명시한다.
 
 ## 4. 평가
 클래스 `c`별로 예측·GT 세그먼트를 매칭(같은 클래스, **IoU > 0.5** ⇒ 유일 TP):
@@ -99,9 +99,9 @@ PQ†  = ( Σ_{c∈thing} PQ_c + Σ_{c∈stuff} IoU_c ) / (|thing|+|stuff|)   # 
 - semantic **mIoU**(표준 19-class, ignore=0), 같은 evaluator 또는 `IoUMeter`로.
 - **FPS / latency** 보고(단일 GPU 추론) — panoptic은 돌아가야 쓸모가 있다.
 
-## 5. 리서치 엔지니어링 (차별점)
+## 5. 학습·실험 인프라
 Hydra config · PyTorch Lightning · Weights & Biases · Docker · Open3D 시각화 · `ablations.md`.
-이것들은 JD의 *"Training Data Pipeline / infra"* 언어에 바로 대응하며, 레포를 한눈에 읽히게 합니다.
+설정 기반 실험 관리, 재현 가능한 환경, 실험 추적을 위한 표준 구성이다.
 
 ## 6. 범위 & 비범위
 - **핵심(반드시 완료):** semantic 재현 → center/offset panoptic → PQ → viz → ablation 1개.

@@ -3,7 +3,7 @@
 사전 등록 실험 — 가설과 setup을 런 **이전에** 적고, 결과는 이후에 채웁니다. 각 실험은 동일한 GATE-2 baseline
 (spconv MinkUNet, voxel 0.05 m, center + offset, offset-shift DBSCAN, val = seq 08, 공식 evaluator)에
 대해 변수 하나만 분리합니다. 범위: **≥1개**를 end-to-end로 실행하고, 나머지는 가설을 명시한 "설계했으나
-미실행"으로 제출 가능. 수식은 `DESIGN.md` 참고.
+미실행"으로 남깁니다. 수식은 `DESIGN.md` 참고.
 
 **Baseline (아래 모든 Δ의 기준)**
 
@@ -65,7 +65,7 @@ thing 점을 가장 가까운 shifted center에 할당. 가중치/σ 동일.
 
 ## A4 · 백본 폭: cr = 1.0 vs 0.5
 **질문:** 채널 폭 절반의 PQ↔FPS 트레이드오프.
-**가설:** cr=0.5는 PQ 몇 점을 내주고 큰 FPS/VRAM 이득 — 배포 관점 서사에 유용.
+**가설:** cr=0.5는 PQ 몇 점을 내주고 FPS/VRAM 이득이 크다 — 배포 관점의 트레이드오프.
 **Setup:** `model.cr=0.5` vs `1.0`; 나머지 고정.
 **주 지표:** PQ vs FPS (및 peak VRAM).
 

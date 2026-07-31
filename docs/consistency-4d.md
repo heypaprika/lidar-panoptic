@@ -5,7 +5,7 @@
 
 ## 0. 출처
 - **PanSt3R** — NAVER LABS Europe, ICCV 2025 (Žust, Cabon 외). arXiv:2506.21348, github: naver/panst3r.
-  멀티뷰 이미지 + 3D 재구성 기반 panoptic. **(우리 트랙과 파이프라인이 다름 → 개념 프레임으로 인용.)**
+  멀티뷰 이미지 + 3D 재구성 기반 panoptic. **(이 레포의 LiDAR 파이프라인과는 접근이 달라 개념적으로 참고.)**
 - **4D Panoptic LiDAR Segmentation** — Aygün 외, CVPR 2021 (TUM). arXiv:2102.12472. **네이버 아님.**
   SemanticKITTI 4D panoptic 태스크와 **LSTQ** 지표를 처음 제안. **(LiDAR-네이티브 → 우리 데모의 앵커.)**
 
@@ -92,5 +92,5 @@ pose + overlap association**으로 LSTQ의 핵심을 실증한다:
 4. **평가/시각화**: 축소 설정(몇 시퀀스·짧은 창)에서 **LSTQ** 측정, 또는 정성 시각화(같은 차량이 프레임을
    넘어 같은 색 id를 유지).
 
-**정직한 스코프.** 우선 (offset + pose + overlap) 경량 버전으로 시작하고, 학습형 시공간 embedding/clustering은
-후속으로 명시. "설계했으나 미실행"이 아니라 **작동하는 최소 4D 데모 + 명확한 확장 경로**를 목표로 한다.
+**스코프.** 우선 (offset + pose + overlap) 경량 버전으로 시작하고, 학습형 시공간 embedding/clustering은
+후속으로 둔다. 목표는 작동하는 최소 4D 데모 + 명확한 확장 경로다.

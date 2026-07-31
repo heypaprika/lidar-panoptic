@@ -6,12 +6,12 @@ Panoptic-DeepLab / DS-Net 계열)를 얹어 확장했습니다. semantic 백본 
 center heatmap → offset-shift 후 clustering → **panoptic 출력**이며, **공식** Panoptic Quality(PQ)와
 mIoU로 평가합니다.
 
-<!-- DEMO: scripts.viz가 demo/를 만들면 여기에 hero 이미지(리뷰어가 가장 먼저 보는 것):
+<!-- DEMO: scripts.viz가 demo/를 만들면 여기에 결과 이미지:
 ![semantic vs panoptic](demo/08_000100_panoptic.png)
 -->
 
-> 목표: *"semantic segmentation을 해봤다"*에서 *"semantic 백본을 panoptic으로 end-to-end 확장하고,
-> 지표·ablation·재현 가능한 연구 인프라까지 갖췄다"*로의 도약을 보이는 것.
+> 범위: SemanticKITTI에서 sparse-voxel semantic 백본을 panoptic으로 end-to-end 확장하고, 공식 지표
+> (PQ/mIoU)·ablation·재현 가능한 학습 인프라를 갖춘다.
 
 ## 결과 (val seq 08)
 축소 설정(아래 명시) — 짧은 컴퓨트 예산에서의 정직한 트레이드오프입니다. reference 행은 비교용 공개 수치.
@@ -31,13 +31,13 @@ mIoU로 평가합니다.
   붙인다. gate는 `TASKS.md`, 수식은 `DESIGN.md`.
 - **center + offset (embedding + MeanShift가 아니라)**: bottom-up 회귀는 조밀하고 잘 정의돼 있어 학습이
   안정적이고 non-trivial PQ에 빨리 도달한다. metric-learning embedding은 margin/bandwidth에 민감해
-  **ablation(A1)**으로 남겨 대안을 이해하고 있음을 보인다.
+  **ablation(A1)**으로 남겨 두 접근을 비교한다.
 - **PQ는 직접 구현하지 않는다**: >0.5 IoU 매칭과 void 처리가 미묘해 틀리기 쉬워, SemanticKITTI 공식
   evaluator를 감싸기만 한다.
 - **지연시간 보고**: panoptic은 돌아가야 의미가 있다 — eval이 network·end-to-end FPS를 함께 출력한다.
 
 ## 직접 구현한 것 vs 가져다 쓴 것
-이 레포에서 직접 작성(보여주려는 엔지니어링):
+이 레포에서 직접 작성:
 - SemanticKITTI 데이터셋 + label remap, 범위 crop, 순수 numpy voxelize/collate (버전 무관, batch-first
   좌표, 비음수 시프트) — `src/data/`
 - 점별 출력(devoxelize)까지 배선한 spconv MinkUNet U-Net, Native algo — `src/models/backbone.py`

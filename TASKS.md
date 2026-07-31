@@ -12,7 +12,7 @@
       Lovász / CE / IoU를 torch 2.4 + CUDA에서 end-to-end 검증.
 - [x] **실제 스캔 백본 검증**(`scripts/debug_backbone.py`) + 학습 **수렴 확인**(val 08 mIoU 상승 중).
 - [ ] **GATE 1 최종 수치**: val(seq 08)에서 semantic **mIoU** 재현·기록. Open3D로 스캔 sanity-check.
-- [ ] (upgrade) MinkUNet → **SPVCNN**(spvnas vendor)으로 headline 수치.
+- [ ] (upgrade) MinkUNet → **SPVCNN**(spvnas vendor)으로 성능 향상.
 - **GATE 1:** semantic mIoU가 *공개 수치에 근접*(축소 설정 OK). 아니면 → 멈추고 수정.
 
 ## Week 3–4 · Panoptic 헤드  ⛔ GATE 2
