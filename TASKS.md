@@ -1,50 +1,49 @@
-# TASKS — 8-week plan (with go/no-go gates)
+# TASKS — 계획과 go/no-go gate
 
-Core = weeks 1–5. Stretch (sim-to-real) = weeks 6–7. Polish = week 8.
-A gate that fails **blocks** the next phase — fix it before moving on.
+핵심 = Week 1–5. 스트레치(sim-to-real) = Week 6–7. 마무리 = Week 8.
+실패한 gate는 다음 단계를 **막습니다** — 넘어가기 전에 고칩니다.
 
-## Week 1–2 · Semantic backbone repro  ⛔ GATE 1
-- [x] SemanticKITTI dataset + label map (`src/data/`) — remap/instance/mIoU **unit-verified**.
-- [x] Voxelize + collate (numpy, version-robust) + DataModule.
-- [x] Semantic training wired: CE + Lovász, val **mIoU**, Hydra/Lightning entrypoint.
-- [x] Runnable backbone: **MinkUNet (torchsparse)** — `python -m src.train task=semantic`.
-- [x] **Pipeline smoke test** (`scripts/smoke_test.py`, dummy backbone, synthetic pts) — collate /
-      heads / Lovász / CE / IoU verified end-to-end on torch 2.4 + CUDA. torchsparse-independent.
-- [ ] **Verify torchsparse v2.1 API** on a box with the sparse-conv build (marked `# VERIFY` in
-      `backbone.py`) — this dev box has no sudo for libsparsehash + too little disk for the dataset.
-- [ ] Run: reproduce semantic **mIoU** on val (seq 08). Sanity-check a scan in Open3D.
-- [ ] (upgrade) swap MinkUNet → **SPVCNN** (vendor spvnas) for the headline number.
-- **GATE 1:** semantic mIoU *close to published* (reduced setting ok). If not → stop & fix.
+## Week 1–2 · Semantic 백본 재현  ⛔ GATE 1
+- [x] SemanticKITTI 데이터셋 + label map (`src/data/`) — remap/instance/mIoU **단위 검증**.
+- [x] Voxelize + collate (numpy, 버전 무관) + DataModule. batch-first 좌표, 비음수 시프트, 범위 crop.
+- [x] Semantic 학습 배선: CE + Lovász, val **mIoU**, Hydra/Lightning 엔트리.
+- [x] 실행 가능한 백본: **spconv MinkUNet U-Net** (torchsparse에서 전환 — 엔지니어링 노트 참고).
+- [x] **파이프라인 스모크 테스트**(`scripts/smoke_test.py`, dummy 백본, 합성 점) — collate / heads /
+      Lovász / CE / IoU를 torch 2.4 + CUDA에서 end-to-end 검증.
+- [x] **실제 스캔 백본 검증**(`scripts/debug_backbone.py`) + 학습 **수렴 확인**(val 08 mIoU 상승 중).
+- [ ] **GATE 1 최종 수치**: val(seq 08)에서 semantic **mIoU** 재현·기록. Open3D로 스캔 sanity-check.
+- [ ] (upgrade) MinkUNet → **SPVCNN**(spvnas vendor)으로 headline 수치.
+- **GATE 1:** semantic mIoU가 *공개 수치에 근접*(축소 설정 OK). 아니면 → 멈추고 수정.
 
-## Week 3–4 · Panoptic heads  ⛔ GATE 2
-- [x] Center head (centerness heatmap) + Offset head (3D offset to instance center).
-- [x] Instance targets + losses: per-(scan,inst) centroid → offset_gt/center_gt; MSE(center),
-      L1(offset, thing points). `_instance_targets`/`_instance_loss` **smoke-verified** (grads flow).
-- [x] Offset-shift + DBSCAN clustering → instance ids, wired into val (`_accumulate_panoptic`).
-- [x] PQ adapter (`panoptic/pq.py`) over official PanopticEval; PQ/PQ†/SQ/RQ/mIoU + lazy vendor.
-- [ ] **Vendor** `np_ioueval.py` (PRBonn) + run: **non-trivial PQ** on val seq 08 (needs cloud box).
-- **GATE 2:** non-trivial **PQ** on val (official evaluator). If not → debug heads/clustering.
+## Week 3–4 · Panoptic 헤드  ⛔ GATE 2
+- [x] Center 헤드(centerness heatmap) + Offset 헤드(instance 중심으로의 3D offset).
+- [x] Instance 타깃 + 손실: per-(scan,inst) centroid → offset_gt/center_gt; MSE(center),
+      L1(offset, thing 점). `_instance_targets`/`_instance_loss` **스모크 검증**(grad 흐름).
+- [x] Offset-shift + DBSCAN clustering → instance id, val에 배선(`_accumulate_panoptic`).
+- [x] PQ 어댑터(`panoptic/pq.py`), 공식 PanopticEval 위에; PQ/PQ†/SQ/RQ/mIoU + lazy vendor.
+- [ ] `np_ioueval.py`(PRBonn) **vendor** + 실행: val seq 08에서 **non-trivial PQ**(클라우드 필요).
+- **GATE 2:** val에서 non-trivial **PQ**(공식 evaluator). 아니면 → 헤드/clustering 디버그.
 
-## Week 5 · Eval + viz
-- [x] Eval entrypoint (`src/eval.py`): ckpt → val mIoU + (panoptic) PQ/PQ†/SQ/RQ via the val loop.
-- [x] Open3D renderer (`scripts/viz.py` + `viz/render.py`): semantic vs panoptic, interactive or
-      offscreen PNG (headless). Needs a ckpt to produce demo frames.
-- [x] Per-class PQ/SQ/RQ/IoU table + FPS (network-only & end-to-end w/ clustering) in `src/eval.py`.
+## Week 5 · 평가 + 시각화
+- [x] Eval 엔트리(`src/eval.py`): ckpt → val mIoU + (panoptic) PQ/PQ†/SQ/RQ, val loop 재사용.
+- [x] Open3D 렌더러(`scripts/viz.py` + `viz/render.py`): semantic vs panoptic, 인터랙티브 또는
+      오프스크린 PNG(헤드리스). 데모 프레임 생성엔 ckpt 필요.
+- [x] per-class PQ/SQ/RQ/IoU 테이블 + FPS(network 전용 & clustering 포함 end-to-end), `src/eval.py`.
 
-## Week 6–7 · Sim-to-Real (STRETCH — droppable)
-- [ ] CARLA synthetic LiDAR + auto label export → point-cloud dataset.
-- [ ] Small experiment: pretrain synthetic → fine-tune SemanticKITTI (or self-training).
-- [ ] If blocked: ship as **designed experiment + preliminary numbers** in README.
+## Week 6–7 · Sim-to-Real (스트레치 — 뺄 수 있음)
+- [ ] CARLA 합성 LiDAR + 자동 label export → 포인트클라우드 데이터셋.
+- [ ] 소규모 실험: 합성 pretrain → SemanticKITTI fine-tune(또는 self-training).
+- [ ] 막히면: README에 **설계된 실험 + 예비 수치**로 제출.
 
-## Week 8 · Ship
-- [x] Results-table + ablations scaffolding: `README.md` table + `ablations.md` (hypotheses set).
-- [ ] Fill results/ablation numbers from the cloud run.
-- [ ] README polish, architecture figure, **demo video/gif**, short tech blog.
-- [ ] Dockerfile reproduces train/eval.
+## Week 8 · 제출
+- [x] 결과표 + ablation 골격: `README.md` 표 + `ablations.md`(가설 사전 등록).
+- [ ] 클라우드 런에서 결과/ablation 수치 기입.
+- [ ] README 정리, 아키텍처 그림, **데모 영상/gif**, 짧은 기술 글.
+- [ ] Dockerfile로 train/eval 재현.
 
-## Ablations to run (pick ≥1) — hypotheses pre-registered in `ablations.md`
+## 실행할 Ablation (≥1개) — 가설은 `ablations.md`에 사전 등록
 - A1 center-offset **vs** instance-embedding+MeanShift.
-- A2 clustering: DBSCAN **vs** dynamic-shift (DS-Net).
-- A3 center head: aux-only **vs** center-NMS grouping.
-- A4 backbone width (SPVCNN cr 1.0 vs 0.5): PQ vs FPS tradeoff.
-- A5 voxel size 0.05 vs 0.10 m.
+- A2 clustering: DBSCAN **vs** dynamic-shift(DS-Net).
+- A3 center 헤드: aux 전용 **vs** center-NMS 그룹핑.
+- A4 백본 폭(SPVCNN cr 1.0 vs 0.5): PQ vs FPS 트레이드오프.
+- A5 voxel 크기 0.05 vs 0.10 m.

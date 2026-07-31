@@ -1,94 +1,92 @@
 # Ablations
 
-Pre-registered experiments — hypotheses and setups written **before** the runs, results filled in
-after. Each isolates one variable against the same GATE-2 baseline (SPVCNN, voxel 0.05 m, center +
-offset, offset-shift DBSCAN), val = seq 08, official evaluator. Scope: run **≥1** end-to-end;
-the rest can ship as designed-but-not-run with the hypothesis stated. See `DESIGN.md` for the math.
+사전 등록 실험 — 가설과 setup을 런 **이전에** 적고, 결과는 이후에 채웁니다. 각 실험은 동일한 GATE-2 baseline
+(spconv MinkUNet, voxel 0.05 m, center + offset, offset-shift DBSCAN, val = seq 08, 공식 evaluator)에
+대해 변수 하나만 분리합니다. 범위: **≥1개**를 end-to-end로 실행하고, 나머지는 가설을 명시한 "설계했으나
+미실행"으로 제출 가능. 수식은 `DESIGN.md` 참고.
 
-**Baseline (reference for every Δ below)**
+**Baseline (아래 모든 Δ의 기준)**
 
 | mIoU | PQ | PQ† | SQ | RQ | FPS |
 |---|---|---|---|---|---|
 | — | — | — | — | — | — |
 
-Fill from `python -m src.eval ckpt=runs/best.ckpt task=panoptic`. Δ columns below are `variant − baseline`.
+`python -m src.eval ckpt=<best.ckpt> task=panoptic`로 채웁니다. 아래 Δ 열은 `variant − baseline`.
 
 ---
 
-## A1 · Instance targets: center+offset vs embedding+MeanShift
-**Question:** does bottom-up offset regression beat metric-learning embeddings for stable, non-trivial PQ?
-**Hypothesis:** offset regression reaches useful PQ faster and more stably; embeddings are sensitive
-to margin/bandwidth (DESIGN §2).
-**Setup:** swap the offset/center heads for an instance-embedding head + discriminative loss; group
-with MeanShift instead of DBSCAN. Backbone, voxel, epochs, semantic loss held fixed.
-**Primary metric:** PQ (+ training stability: epochs-to-target, variance across seeds).
+## A1 · Instance 타깃: center+offset vs embedding+MeanShift
+**질문:** bottom-up offset 회귀가 안정적이고 non-trivial한 PQ에서 metric-learning embedding을 이기는가?
+**가설:** offset 회귀가 쓸 만한 PQ에 더 빨리·안정적으로 도달; embedding은 margin/bandwidth에 민감(DESIGN §2).
+**Setup:** offset/center 헤드를 instance-embedding 헤드 + discriminative loss로 교체; DBSCAN 대신
+MeanShift로 그룹핑. 백본·voxel·epoch·semantic loss는 고정.
+**주 지표:** PQ (+ 학습 안정성: 목표까지 epoch 수, seed 간 분산).
 
-| Variant | PQ | ΔPQ | SQ | RQ | notes (convergence/stability) |
+| Variant | PQ | ΔPQ | SQ | RQ | 비고(수렴/안정성) |
 |---|---|---|---|---|---|
 | center+offset (baseline) | — | 0 | — | — | — |
 | embedding + MeanShift | — | — | — | — | — |
 
-**Takeaway:** _fill after run._
+**결론:** _런 이후 기입._
 
 ---
 
-## A2 · Clustering: DBSCAN vs learned dynamic-shift (DS-Net)
-**Question:** is a learned dynamic point-shift worth the complexity over a fixed DBSCAN on shifted coords?
-**Hypothesis:** dynamic-shift helps crowded scenes (adjacent instances) at some FPS cost.
-**Setup:** keep the same heads; replace `panoptic_from_offsets`'s DBSCAN with iterative dynamic-shift
-grouping. Same eps-equivalent bandwidth swept on val.
-**Primary metric:** PQ (esp. on thing-dense classes: car/person/bicyclist) + FPS.
+## A2 · Clustering: DBSCAN vs 학습형 dynamic-shift (DS-Net)
+**질문:** 학습형 dynamic point-shift가 shifted 좌표 위 고정 DBSCAN 대비 복잡도를 감수할 가치가 있나?
+**가설:** dynamic-shift는 밀집 장면(인접 instance)에서 도움되나 FPS 비용이 있다.
+**Setup:** 헤드는 그대로 두고, `panoptic_from_offsets`의 DBSCAN을 반복 dynamic-shift 그룹핑으로 교체.
+val에서 동등한 bandwidth를 스윕.
+**주 지표:** PQ (특히 thing-밀집 클래스: car/person/bicyclist) + FPS.
 
 | Variant | PQ | ΔPQ | thing-PQ | FPS |
 |---|---|---|---|---|
 | DBSCAN (baseline) | — | 0 | — | — |
 | dynamic-shift | — | — | — | — |
 
-**Takeaway:** _fill after run._
+**결론:** _런 이후 기입._
 
 ---
 
-## A3 · Center head: auxiliary supervision vs center-NMS grouping
-**Question:** does actually *using* the center heatmap for grouping beat treating it as aux supervision only?
-**Hypothesis:** center-NMS seeding reduces over-segmentation vs pure-offset DBSCAN on large instances.
-**Setup:** baseline trains the center head but groups from offset only. Variant seeds instances at
-heatmap peaks (NMS) and assigns thing points by nearest shifted center. Same weights/σ.
-**Primary metric:** PQ + RQ (fragmentation), qualitative viz on trucks/other-vehicle.
+## A3 · Center 헤드: 보조 supervision vs center-NMS 그룹핑
+**질문:** center heatmap을 실제로 그룹핑에 *쓰는* 것이 보조 supervision으로만 두는 것보다 나은가?
+**가설:** center-NMS seeding이 큰 instance에서 pure-offset DBSCAN 대비 over-segmentation을 줄인다.
+**Setup:** baseline은 center 헤드를 학습하되 offset만으로 그룹핑. Variant는 heatmap peak를 seed(NMS)로,
+thing 점을 가장 가까운 shifted center에 할당. 가중치/σ 동일.
+**주 지표:** PQ + RQ(분절), truck/other-vehicle 정성 viz.
 
 | Variant | PQ | ΔPQ | RQ | over-seg (inst/scan) |
 |---|---|---|---|---|
 | offset-only DBSCAN (baseline) | — | 0 | — | — |
-| center-NMS grouping | — | — | — | — |
+| center-NMS 그룹핑 | — | — | — | — |
 
-**Takeaway:** _fill after run._
+**결론:** _런 이후 기입._
 
 ---
 
-## A4 · Backbone width: SPVCNN cr = 1.0 vs 0.5
-**Question:** the PQ↔FPS tradeoff of halving channel width.
-**Hypothesis:** cr=0.5 loses a few PQ points for a large FPS/VRAM win — useful for deployment framing.
-**Setup:** `model=spvcnn model.cr=0.5` vs `1.0`; everything else fixed.
-**Primary metric:** PQ vs FPS (and peak VRAM).
+## A4 · 백본 폭: cr = 1.0 vs 0.5
+**질문:** 채널 폭 절반의 PQ↔FPS 트레이드오프.
+**가설:** cr=0.5는 PQ 몇 점을 내주고 큰 FPS/VRAM 이득 — 배포 관점 서사에 유용.
+**Setup:** `model.cr=0.5` vs `1.0`; 나머지 고정.
+**주 지표:** PQ vs FPS (및 peak VRAM).
 
 | cr | mIoU | PQ | FPS | VRAM |
 |---|---|---|---|---|
 | 1.0 (baseline) | — | — | — | — |
 | 0.5 | — | — | — | — |
 
-**Takeaway:** _fill after run._
+**결론:** _런 이후 기입._
 
 ---
 
-## A5 · Voxel size: 0.05 m vs 0.10 m
-**Question:** resolution vs speed/memory.
-**Hypothesis:** 0.10 m roughly doubles throughput and cuts VRAM, costing PQ mostly on small things
-(bicycle/pole).
-**Setup:** `data.voxel=0.05` vs `0.10`; same epochs.
-**Primary metric:** PQ (overall + small-thing classes) vs FPS/VRAM.
+## A5 · Voxel 크기: 0.05 m vs 0.10 m
+**질문:** 해상도 vs 속도/메모리.
+**가설:** 0.10 m는 처리량을 대략 2배로 늘리고 VRAM을 줄이며, PQ 손실은 주로 작은 thing(bicycle/pole)에서.
+**Setup:** `data.voxel=0.05` vs `0.10`; epoch 동일.
+**주 지표:** PQ (전체 + small-thing 클래스) vs FPS/VRAM.
 
 | voxel | mIoU | PQ | small-thing PQ | FPS | VRAM |
 |---|---|---|---|---|---|
 | 0.05 m (baseline) | — | — | — | — | — |
 | 0.10 m | — | — | — | — | — |
 
-**Takeaway:** _fill after run._
+**결론:** _런 이후 기입._
