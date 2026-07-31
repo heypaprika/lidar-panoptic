@@ -1,7 +1,9 @@
 # core
 torch>=2.1
 numpy
-# torchsparse installed separately from source (see README): needs libsparsehash-dev
+# sparse-conv backbone: spconv (prebuilt CUDA wheel, no source build).
+# pick the wheel matching your CUDA — cu120 covers CUDA 12.x (incl. 12.4).
+spconv-cu120
 # training infra
 pytorch-lightning>=2.1
 hydra-core>=1.3

@@ -1,7 +1,7 @@
 # Lightweight Panoptic Segmentation on Sparse Point Clouds
 
 LiDAR **panoptic segmentation** on SemanticKITTI, built by extending a sparse-voxel
-**semantic** backbone (SPVCNN / torchsparse) with lightweight **center + offset** instance
+**semantic** backbone (MinkUNet-style U-Net on **spconv**) with lightweight **center + offset** instance
 heads (Panoptic-DeepLab / DS-Net style, bottom-up). Semantic backbone → per-point offset to
 instance center + center heatmap → shift & cluster → **panoptic output**, evaluated with the
 official **Panoptic Quality (PQ)** and **mIoU**.
@@ -17,11 +17,11 @@ official **Panoptic Quality (PQ)** and **mIoU**.
 - **Official eval**: PQ / PQ† / SQ / RQ via SemanticKITTI's panoptic evaluator; mIoU for semantic.
 
 ## Status
-Code complete through Week 5 (data · MinkUNet/SPVCNN backbone · semantic+instance heads · losses ·
+Code complete through Week 5 (data · MinkUNet-style spconv backbone · semantic+instance heads · losses ·
 offset-shift DBSCAN · official-PQ adapter · eval with per-class table + FPS · Open3D viz). The full
-pipeline is verified on synthetic data via `scripts/smoke_test.py` (torch 2.4 + CUDA). Remaining is
-execution on a rented cloud GPU: torchsparse `# VERIFY`, reproduce mIoU (GATE 1), PQ (GATE 2). See
-`TASKS.md` for gates and `DESIGN.md` for the math.
+pipeline is verified on synthetic data via `scripts/smoke_test.py` (torch 2.4 + CUDA); the spconv
+backbone runs end-to-end on a real scan via `scripts/debug_backbone.py`. Remaining is the cloud run:
+reproduce mIoU (GATE 1), PQ (GATE 2). See `TASKS.md` for gates and `DESIGN.md` for the math.
 
 ## Results (fill in on the cloud run)
 Numbers below are placeholders; the reference row is the published ballpark to compare against
@@ -45,14 +45,14 @@ Training targets a **rented cloud GPU** (24GB+ VRAM, ~170GB disk). Two paths:
 docker build -f docker/Dockerfile -t panoptic .
 
 # B) Bare box with sudo (vast.ai / runpod / lambda cuda-devel image):
-bash scripts/setup_cloud.sh      # apt libsparsehash + pip + torchsparse + smoke test
+bash scripts/setup_cloud.sh      # pip deps incl. spconv wheel (no build) + smoke test
 
 # data — SemanticKITTI velodyne+labels (~80GB), then point the config at it:
 bash scripts/download_semantickitti.sh /data/semantickitti
 #   -> edit configs/data/semantickitti.yaml  root: /data/semantickitti/dataset
 ```
 
-No GPU/data? Verify the pipeline without torchsparse or the dataset:
+No GPU/data? Verify the pipeline without spconv or the dataset:
 ```bash
 PYTHONPATH=. python -m scripts.smoke_test   # synthetic: collate/heads/losses/mIoU
 ```
@@ -66,7 +66,7 @@ python -m scripts.viz ckpt=runs/best.ckpt viz.frame=000100 viz.save=demo/   # Op
 ```
 
 ## Upstream to adapt (semantic gate)
-- Backbone + SemanticKITTI loader: **mit-han-lab/spvnas** (SPVCNN, torchsparse).
+- Backbone: MinkUNet-style U-Net on **spconv** (traub/spconv). SPVCNN upgrade: adapt mit-han-lab/spvnas.
 - Panoptic eval reference: **PRBonn/semantic-kitti-api** (`evaluate_panoptic`).
 
 ## Layout

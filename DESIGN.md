@@ -14,7 +14,7 @@ plus PQ†, and **mIoU** for the semantic part.
 points (x,y,z,remission)
       │  voxelize (0.05 m)
       ▼
-SPVCNN backbone (torchsparse)  ──►  per-point features
+MinkUNet U-Net (spconv)  ──►  per-point features
       ├── Semantic head   → class logits (19+1)            [CE + Lovász-softmax]
       ├── Center head     → centerness heatmap (thing)     [MSE]
       └── Offset head     → 3D offset to instance center   [L1, thing points only]
@@ -74,7 +74,7 @@ for cls in thing classes:
   no false instance. The official evaluator then scores it as an unmatched thing region.
 
 ## 3. Compute plan (rented cloud GPU, 24 GB+)
-Dev is done on a small local box (12 GB, ~7 GB free) — code + a torchsparse-free **synthetic smoke
+Dev is done on a small local box (12 GB, ~7 GB free) — code + an spconv-free **synthetic smoke
 test** (`scripts/smoke_test.py`) only. Real training runs on a **rented cloud GPU** (24 GB+ VRAM,
 ~170 GB disk for velodyne+labels); the local box can't hold the ~80 GB dataset. So we de-risk:
 - voxel **0.05 m**, small batch (2–4 scans), **mixed precision (fp16)**, gradient accumulation.
@@ -115,7 +115,7 @@ make the repo legible at a glance.
 ## 7. Risks → mitigations
 | Risk | Mitigation |
 |---|---|
-| torchsparse/CUDA install pain | pin torchsparse v2.1, `libsparsehash-dev`, Docker image |
+| sparse-conv install/version pain | use **spconv** prebuilt CUDA wheel (no source build); Docker image. (Dropped torchsparse: its 2.0.0b strided conv mis-generated coords.) |
 | Semantic repro doesn't match | Gate 1 checkpoint; adapt spvnas hyperparams before adding heads |
 | PQ implementation bugs | wrap official evaluator, unit-test on toy scene |
 | Clustering unstable | start DBSCAN on shifted coords; add dynamic-shift only if needed |

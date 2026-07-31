@@ -4,30 +4,25 @@
 #
 #   bash scripts/setup_cloud.sh
 #
-# Assumes a CUDA toolkit (nvcc) is already present — true for vast.ai/runpod/lambda
-# "cuda-devel" / pytorch images. Verify with `nvcc --version` first.
+# spconv ships prebuilt CUDA wheels, so there is NO source build (no libsparsehash, no nvcc needed
+# at install time). Just make sure the box has an NVIDIA GPU + driver.
 set -euo pipefail
 
 SUDO="$(command -v sudo || true)"
 
-echo "==> system deps (libsparsehash for torchsparse, ninja, unzip)"
+echo "==> system deps (git, unzip, libgl for open3d)"
 $SUDO apt-get update -qq
-$SUDO apt-get install -y --no-install-recommends libsparsehash-dev git ninja-build libgl1 wget unzip
+$SUDO apt-get install -y --no-install-recommends git libgl1 wget unzip
 
 echo "==> python deps"
 # system python often ships blinker via distutils, which pip can't cleanly uninstall to upgrade.
-# install a fresh pip-managed copy first (only blinker) so the requirements install doesn't choke.
 pip install --no-cache-dir --ignore-installed blinker
+# requirements.txt pins spconv-cu120 (CUDA 12.x). For a different CUDA, install the matching wheel:
+#   pip install spconv-cu118   # CUDA 11.8
 pip install --no-cache-dir -r requirements.txt
 
-echo "==> torchsparse v2.1 (from source; builds for the detected GPU arch)"
-# If building on a box whose GPU differs from the run box, set e.g.
-#   export TORCH_CUDA_ARCH_LIST="8.9"   # single-arch, faster build
-FORCE_CUDA=1 pip install --no-cache-dir --no-build-isolation \
-  git+https://github.com/mit-han-lab/torchsparse.git@v2.1.0
-
 echo "==> verify"
-python -c "import torch, torchsparse; print('torch', torch.__version__, 'cuda', torch.cuda.is_available()); print('torchsparse', torchsparse.__version__)"
+python -c "import torch, spconv; print('torch', torch.__version__, 'cuda', torch.cuda.is_available()); print('spconv', spconv.__version__)"
 echo "==> smoke test (synthetic, no dataset)"
 PYTHONPATH=. python -m scripts.smoke_test
 
@@ -35,6 +30,6 @@ cat <<'EOF'
 
 Setup OK. Next:
   1) bash scripts/download_semantickitti.sh /data/semantickitti   # ~80GB, needs disk
-  2) edit configs/data/semantickitti.yaml -> root: /data/semantickitti/dataset
-  3) python -m src.train task=semantic model=minkunet             # reproduce mIoU on seq 08
+  2) python -m scripts.debug_backbone /data/semantickitti/dataset val   # sanity: nnz shrinks, BACKBONE OK
+  3) python -m src.train task=semantic model=minkunet data.root=/data/semantickitti/dataset
 EOF

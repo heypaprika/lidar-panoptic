@@ -1,60 +1,48 @@
-"""Run the real backbone stage-by-stage on one real scan to locate the torchsparse crash.
+"""Sanity-run the spconv backbone on one real scan: full forward + output shape + timing.
 
-    CUDA_LAUNCH_BLOCKING=1 python -m scripts.debug_backbone /path/to/dataset [split]
+    python -m scripts.debug_backbone /path/to/dataset [split]
 
-Prints nnz / coord range / tensor-stride at stem, enc1, enc2, then attempts enc3 (where the
-'invalid configuration argument' crash happens) so we see the exact tensor that triggers it.
-Also confirms the collate fix is present (coord min should be >= 0).
+Confirms the sparse-conv path works end-to-end on real KITTI geometry (the torchsparse strided-conv
+bug is gone with spconv). Reports voxel count, per-point output shape, and forward latency.
 """
 
 from __future__ import annotations
 
 import sys
+import time
 
 import torch
-import torchsparse
-from torchsparse import SparseTensor
 
 from src.data.collate import voxelize_collate
 from src.data.dataset import SemanticKITTIPanoptic
-from src.models.backbone import MinkUNetBackbone
-
-
-def _stride(t):
-    for a in ("stride", "s", "tensor_stride"):
-        v = getattr(t, a, None)
-        if v is not None:
-            return v
-    return "?"
-
-
-def _show(t, name: str) -> None:
-    c = t.C[:, 1:4]  # coords are [batch, x, y, z] in torchsparse 2.x
-    print(f"{name:6s} nnz={t.F.shape[0]:>7d}  Cshape={tuple(t.C.shape)}  "
-          f"stride={_stride(t)}  cmin={int(c.min())} cmax={int(c.max())}")
+from src.models.backbone import SpconvUNetBackbone
 
 
 def main() -> None:
     root = sys.argv[1] if len(sys.argv) > 1 else "data/semantickitti/dataset"
     split = sys.argv[2] if len(sys.argv) > 2 else "val"
-    print("torchsparse", torchsparse.__version__)
+    dev = "cuda" if torch.cuda.is_available() else "cpu"
 
     ds = SemanticKITTIPanoptic(root, split)
     b = voxelize_collate([ds[0]], voxel=0.05, in_channels=4)
-    b = {k: (v.cuda() if torch.is_tensor(v) else v) for k, v in b.items()}
+    b = {k: (v.to(dev) if torch.is_tensor(v) else v) for k, v in b.items()}
     print(f"scan points={b['xyz'].shape[0]} voxels={b['coords'].shape[0]} "
-          f"coord min={int(b['coords'][:, 1:4].min())} max={int(b['coords'][:, 1:4].max())} "
-          f"(coords are [b,x,y,z]; min>=0 means collate fix present)")
+          f"coord[min={int(b['coords'][:, 1:4].min())}, max={int(b['coords'][:, 1:4].max())}]")
 
-    m = MinkUNetBackbone().cuda().eval()
-    x = SparseTensor(feats=b["feats"], coords=b["coords"])
+    m = SpconvUNetBackbone().to(dev).eval()
     with torch.no_grad():
-        s0 = m.stem(x); torch.cuda.synchronize(); _show(s0, "stem")
-        e1 = m.enc1(s0); torch.cuda.synchronize(); _show(e1, "enc1")
-        e2 = m.enc2(e1); torch.cuda.synchronize(); _show(e2, "enc2")
-        print("-> attempting enc3 (crash point) ...")
-        e3 = m.enc3(e2); torch.cuda.synchronize(); _show(e3, "enc3")
-    print("BACKBONE OK — all encoder stages passed")
+        out = m(b)  # warm-up (builds spconv kernels)
+        if dev == "cuda":
+            torch.cuda.synchronize()
+        t0 = time.perf_counter()
+        out = m(b)
+        if dev == "cuda":
+            torch.cuda.synchronize()
+        dt = time.perf_counter() - t0
+
+    assert out.shape[0] == b["xyz"].shape[0], (out.shape, b["xyz"].shape)  # per-point features
+    print(f"per-point feat: {tuple(out.shape)}  forward={dt * 1e3:.0f} ms  finite={torch.isfinite(out).all().item()}")
+    print("BACKBONE OK — spconv U-Net ran end-to-end on a real scan")
 
 
 if __name__ == "__main__":
