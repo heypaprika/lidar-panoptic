@@ -15,24 +15,30 @@ from torch import nn
 
 try:  # keep import-safe on CPU/CI without spconv (DummyBackbone still works)
     import spconv.pytorch as spconv
+    from spconv.core import ConvAlgo
 
     _HAS_SPCONV = True
 except ImportError:  # pragma: no cover
     spconv = None
+    ConvAlgo = None
     _HAS_SPCONV = False
+
+# spconv's default implicit-GEMM kernels SIGFPE on sm_86 (RTX 3090) in this build; the Native algo
+# avoids that path. (Slightly slower but correct — revisit if a newer spconv fixes implicit GEMM.)
+_ALGO = ConvAlgo.Native if _HAS_SPCONV else None
 
 
 def _subm(inc: int, outc: int, key: str) -> "spconv.SparseSequential":
     # submanifold conv keeps the coordinate set fixed (feature extraction, no down/upsample)
     return spconv.SparseSequential(
-        spconv.SubMConv3d(inc, outc, 3, bias=False, indice_key=key),
+        spconv.SubMConv3d(inc, outc, 3, padding=1, bias=False, indice_key=key, algo=_ALGO),
         nn.BatchNorm1d(outc), nn.ReLU(True),
     )
 
 
 def _down(inc: int, outc: int, key: str) -> "spconv.SparseSequential":
     return spconv.SparseSequential(
-        spconv.SparseConv3d(inc, outc, 3, stride=2, bias=False, indice_key=key),
+        spconv.SparseConv3d(inc, outc, 3, stride=2, padding=1, bias=False, indice_key=key, algo=_ALGO),
         nn.BatchNorm1d(outc), nn.ReLU(True),
     )
 
@@ -40,7 +46,7 @@ def _down(inc: int, outc: int, key: str) -> "spconv.SparseSequential":
 def _up(inc: int, outc: int, key: str) -> "spconv.SparseSequential":
     # inverse conv restores the exact coords/order of the matching `key` downsample -> skip-concat aligns
     return spconv.SparseSequential(
-        spconv.SparseInverseConv3d(inc, outc, 3, bias=False, indice_key=key),
+        spconv.SparseInverseConv3d(inc, outc, 3, bias=False, indice_key=key, algo=_ALGO),
         nn.BatchNorm1d(outc), nn.ReLU(True),
     )
 
