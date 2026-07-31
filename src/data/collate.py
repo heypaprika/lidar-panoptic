@@ -21,20 +21,29 @@ import numpy as np
 import torch
 
 
-def voxelize_collate(samples: list[dict], voxel: float, in_channels: int = 4) -> dict:
+def voxelize_collate(
+    samples: list[dict], voxel: float, in_channels: int = 4, point_range=None
+) -> dict:
     coords_all, feats_all = [], []
     inverse_all, sem_all, xyz_all, inst_all, pbatch_all = [], [], [], [], []
     meta = []
     vox_offset = 0
+    lo = np.asarray(point_range[:3], np.float32) if point_range else None
+    hi = np.asarray(point_range[3:], np.float32) if point_range else None
 
     for b, s in enumerate(samples):
         xyz = s["xyz"].astype(np.float32)  # [Np,3]
+        feat = s["feat"].astype(np.float32)
+        sem = s.get("sem", np.zeros(len(xyz), np.int64))
+        inst = s.get("inst", np.zeros(len(xyz), np.int64))
+        # crop to a fixed range: drops far outliers so spatial_shape stays bounded. spconv flattens
+        # coords as batch*(X*Y*Z)+...; unbounded KITTI extents overflow int32 at batch>2 (illegal
+        # memory access). Cropping caps the volume deterministically (standard KITTI preprocessing).
+        if lo is not None:
+            m = np.all((xyz >= lo) & (xyz < hi), axis=1)
+            xyz, feat, sem, inst = xyz[m], feat[m], sem[m], inst[m]
         # point feature: [x,y,z,remission] (Cin=4) or [remission] (Cin=1)
-        pfeat = (
-            np.concatenate([xyz, s["feat"].astype(np.float32)], axis=1)
-            if in_channels == 4
-            else s["feat"].astype(np.float32)
-        )
+        pfeat = np.concatenate([xyz, feat], axis=1) if in_channels == 4 else feat
         vc = np.floor(xyz / voxel).astype(np.int32)  # [Np,3]
         # torchsparse expects non-negative voxel coords; KITTI has points behind/left/below the
         # sensor (negative xyz). Shift each scan to its own min so the sparse-conv kernel maps stay
@@ -52,8 +61,8 @@ def voxelize_collate(samples: list[dict], voxel: float, in_channels: int = 4) ->
         inverse_all.append(inverse + vox_offset)                 # -> global voxel rows
         vox_offset += nv
 
-        sem_all.append(s.get("sem", np.zeros(len(xyz), np.int64)))
-        inst_all.append(s.get("inst", np.zeros(len(xyz), np.int64)))
+        sem_all.append(sem)
+        inst_all.append(inst)
         xyz_all.append(xyz)
         pbatch_all.append(np.full(len(xyz), b, dtype=np.int64))
         meta.append((s["seq"], s["frame"], len(xyz)))

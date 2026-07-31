@@ -1,5 +1,8 @@
 name: semantickitti
 root: /path/to/SemanticKITTI    # dataset/sequences/{seq}/{velodyne,labels}
 voxel: 0.05                     # meters
-batch_size: 2
+# crop to a fixed range [xmin,ymin,zmin, xmax,ymax,zmax] (m); drops far outliers so spconv's
+# int32 coord flattening (batch*X*Y*Z) doesn't overflow at batch>2. ~2000x2000x120 grid @ 0.05m.
+point_range: [-50.0, -50.0, -4.0, 50.0, 50.0, 2.0]
+batch_size: 4
 num_workers: 6

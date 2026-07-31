@@ -16,7 +16,10 @@ class SemanticKITTIDataModule(pl.LightningDataModule):
         super().__init__()
         self.cfg = cfg
         self._collate = partial(
-            voxelize_collate, voxel=cfg.data.voxel, in_channels=cfg.model.in_channels
+            voxelize_collate,
+            voxel=cfg.data.voxel,
+            in_channels=cfg.model.in_channels,
+            point_range=cfg.data.get("point_range"),
         )
 
     def _loader(self, split: str, shuffle: bool) -> DataLoader:
