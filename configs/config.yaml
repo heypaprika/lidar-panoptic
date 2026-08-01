@@ -24,6 +24,7 @@ cluster:
   min_points: 20
 ckpt: null             # checkpoint path for eval.py / scripts.viz
 oracle: none           # panoptic debug: none | semantic (GT sem) | instance (GT inst) — PQ 오차 분해
+pq_in_val: false       # 학습 중 validation에서 PQ 계산? (느림) — 기본 off, PQ는 src.eval에서
 viz:
   seq: "08"
   frame: "000000"

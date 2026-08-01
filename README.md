@@ -119,9 +119,9 @@ U-Net(`src/models/backbone.py`), semantic·instance 타깃/손실(`src/lit_modul
 bash scripts/download_semantickitti.sh /data/semantickitti     # ~80GB
 DATA=/data/semantickitti/dataset
 python -m src.train task=semantic model=minkunet data.root=$DATA        # GATE 1
-wget -O src/panoptic/np_ioueval.py \
-  https://raw.githubusercontent.com/PRBonn/semantic-kitti-api/master/auxiliary/np_ioueval.py
-python -m src.train task=panoptic  model=minkunet data.root=$DATA       # GATE 2
+python -m src.train task=panoptic  model=minkunet data.root=$DATA       # GATE 2 (PQ는 eval에서 계산)
+wget -O src/panoptic/eval_np.py \
+  https://raw.githubusercontent.com/PRBonn/semantic-kitti-api/master/auxiliary/eval_np.py   # 공식 PQ evaluator
 python -m src.eval  ckpt=<best.ckpt> task=panoptic data.root=$DATA      # PQ/mIoU + per-class + FPS
 python -m scripts.viz ckpt=<best.ckpt> viz.frame=000100 viz.save=demo/ data.root=$DATA
 # GPU/데이터 없이: PYTHONPATH=. python -m scripts.smoke_test

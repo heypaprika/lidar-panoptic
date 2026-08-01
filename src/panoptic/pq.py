@@ -1,10 +1,11 @@
 """Panoptic Quality (PQ) evaluation — thin adapter over the official SemanticKITTI evaluator.
 
 Do NOT hand-roll PQ: void handling and the >0.5-IoU greedy matching are subtle (DESIGN §4). We
-vendor PRBonn/semantic-kitti-api's `PanopticEval` and only adapt our (sem, inst) arrays to it:
+vendor PRBonn/semantic-kitti-api's `PanopticEval` (from auxiliary/eval_np.py — note: np_ioueval.py
+only has the semantic `iouEval`) and only adapt our (sem, inst) arrays to it:
 
-    wget -O src/panoptic/np_ioueval.py \\
-      https://raw.githubusercontent.com/PRBonn/semantic-kitti-api/master/auxiliary/np_ioueval.py
+    wget -O src/panoptic/eval_np.py \\
+      https://raw.githubusercontent.com/PRBonn/semantic-kitti-api/master/auxiliary/eval_np.py
 
 `PanopticEval` works in *train-id* space (0..19, ignore=0) — the same space our predictions and
 remapped GT already use — so no extra remap is needed here.
@@ -19,12 +20,12 @@ from ..data.semantic_kitti import IGNORE_ID, NUM_CLASSES, THING_TRAIN_IDS
 
 def _load_eval_cls():
     try:
-        from .np_ioueval import PanopticEval  # vendored from PRBonn/semantic-kitti-api
+        from .eval_np import PanopticEval  # vendored from PRBonn/semantic-kitti-api auxiliary/eval_np.py
     except ImportError as e:  # pragma: no cover
         raise ImportError(
             "Vendor the official evaluator first:\n"
-            "  wget -O src/panoptic/np_ioueval.py "
-            "https://raw.githubusercontent.com/PRBonn/semantic-kitti-api/master/auxiliary/np_ioueval.py"
+            "  wget -O src/panoptic/eval_np.py "
+            "https://raw.githubusercontent.com/PRBonn/semantic-kitti-api/master/auxiliary/eval_np.py"
         ) from e
     return PanopticEval
 

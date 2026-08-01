@@ -32,6 +32,7 @@ class PanopticLit(pl.LightningModule):
         # oracle debugging: 'none' | 'semantic' (GT sem → isolate clustering) | 'instance'
         # (GT instance ids → isolate semantic). Decomposes PQ error into semantic vs grouping.
         self.oracle = str(cfg.get("oracle", "none"))
+        self.pq_in_val = bool(cfg.get("pq_in_val", False))  # compute PQ during training val? (slow)
         self.val_iou = IoUMeter(NUM_CLASSES, ignore=IGNORE_ID)
         # official PQ evaluator is heavy + needs the vendored eval; only build it for panoptic.
         self.pq = None
@@ -91,7 +92,9 @@ class PanopticLit(pl.LightningModule):
         out = self(batch)
         pred = out["sem_logits"].argmax(-1)
         self.val_iou.add(pred.cpu().numpy(), batch["sem"].cpu().numpy())
-        if self.task == "panoptic":
+        # PQ during training-time validation is slow (DBSCAN per scan) and needs the vendored
+        # evaluator; keep it off by default (checkpoint monitors val/mIoU). src.eval computes PQ.
+        if self.task == "panoptic" and self.pq_in_val:
             self._accumulate_panoptic(out, batch, pred)
 
     def _accumulate_panoptic(self, out, batch, pred) -> None:
