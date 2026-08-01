@@ -31,15 +31,15 @@ points (x,y,z,remission) → voxelize(0.05 m) → spconv MinkUNet U-Net → 점�
 타깃·손실·그룹핑·merge의 정확한 수식은 [`DESIGN.md`](DESIGN.md) §2.1, 평가 수식은 §4.
 
 ## Results (val seq 08)
-**실험 설정** (측정 시 사실 그대로 기입): train 시퀀스=`…`, voxel=`…` m, epoch=`…`, batch=`…`, precision=32.
-공개 baseline은 **재학습이 아니라 논문 공개 수치를 인용**한 값이라 직접 비교 대상이 아니다. 설정 차이만
-사실로 적고, 격차의 원인 해석은 결과가 나온 뒤 Discussion에서 근거를 갖고 한다.
+**실험 설정**: train 시퀀스 00–07,09,10 (전체) · voxel 0.05 m · 40 epoch · batch 4 · fp32 · 범위 crop
+[-50,-50,-4, 50,50,2] · **data augmentation 없음** · compact spconv MinkUNet (5.9M). 공개 baseline은
+**재학습이 아니라 논문 공개 수치를 인용**한 값이라 직접 비교 대상이 아니다. 격차의 원인 해석은 아래 Discussion.
 
 **진행형 기여 분해(progressive) — 각 헤드가 지표에 미치는 영향**
 
-| 모델 | mIoU | PQ | PQ† | FPS |
+| 모델 | mIoU | PQ | PQ† | FPS(scans/s) |
 |---|---|---|---|---|
-| Semantic only | _측정중_ | — | — | _측정중_ |
+| Semantic only | **54.8** | — | — | **18.4** |
 | + Center head | _측정중_ | _측정중_ | _측정중_ | _측정중_ |
 | + Offset head (full) | _측정중_ | _측정중_ | _측정중_ | _측정중_ |
 
@@ -51,7 +51,7 @@ points (x,y,z,remission) → voxelize(0.05 m) → spconv MinkUNet U-Net → 점�
 | DS-Net (CVPR'21) | 57.7 | 63.4 | 77.6 | 68.0 | 63.5 |
 | KPConv + PV-RCNN | 51.7 | 57.4 | 78.9 | 63.1 | 63.1 |
 | PointGroup | 46.1 | 54.0 | 74.6 | 56.6 | 55.7 |
-| **Ours** (spconv MinkUNet + center/offset, 축소) | _측정중_ | _측정중_ | _측정중_ | _측정중_ | _측정중_ |
+| **Ours** (spconv MinkUNet + center/offset) | _측정중_ | _측정중_ | _측정중_ | _측정중_ | **54.8** |
 
 DS-Net·Panoptic-PolarNet이 우리와 같은 bottom-up 계열이라 가장 가까운 비교 대상이다. (참고: 최신
 Panoptic-PHNet test PQ 61.5.) 수치 출처는 아래 참고문헌.
@@ -88,12 +88,27 @@ python -m src.eval ckpt=<best.ckpt> task=panoptic oracle=instance data.root=$DAT
 - 작은 **traffic-sign**은 center heatmap이 약함 — 점 수가 적어 heatmap 신호가 낮음.
 
 ## Discussion
-학습 결과가 나오면 아래 축으로 해석한다(측정 후 확정):
-- **semantic mIoU는 거의 유지되는데 PQ가 오르는가?** instance 헤드가 semantic feature를 크게 흔들지 않는지,
-  PQ 이득이 SQ(마스크 품질)에서 오는지 RQ(검출)에서 오는지 per-class로 분해.
-- **어느 클래스가 PQ를 끌어내리나** — 작은 thing(bicycle/motorcycle/traffic-sign) 위주인지.
-- **clustering 민감도** — DBSCAN `eps`에 따른 over/under-segmentation(ablation A2/A5와 연결).
-- **latency / memory** — network vs end-to-end(DBSCAN 포함) FPS, voxel/배치에 따른 VRAM.
+
+### Semantic (mIoU 54.8)
+- **격차가 클래스별로 극단적으로 불균등하다.** 흔한 클래스는 이미 공개 수치급 — car 94.3, road 89.7,
+  building 86.9, vegetation 87.4, bicyclist 81.4. 반면 희귀·소형 클래스가 mIoU를 끌어내린다 —
+  motorcyclist **0.0**, other-ground **0.3**, bicycle **13.7**, parking 23.0. mIoU는 클래스 균등 평균이라
+  이 몇 개가 8~9점을 잠식한다. 즉 공개 대비 ~9점 격차는 backbone이 전반적으로 약해서가 아니라 **소수
+  희귀 클래스의 붕괴**에서 온다.
+- **원인(근거 기반).** 이 런은 축소가 아니라 거의 풀 세팅(전체 train·voxel 0.05·40 epoch)이었다. 따라서
+  격차는 epoch/voxel이 아니라 (1) **data augmentation 부재**(회전/스케일/flip/instance oversampling이
+  없어 희귀 클래스가 학습되지 않음 — motorcyclist 0.0이 전형), (2) **compact 백본**(5.9M, SPVCNN/full
+  MinkUNet보다 작음), (3) 클래스 균형 샘플링 없음 때문으로 본다.
+- **함의.** 흔한 클래스는 포화 상태라, augmentation + 희귀클래스 oversampling이 가장 큰 상승 여지다. 이는
+  panoptic으로 직결된다 — bicycle/motorcyclist의 낮은 semantic이 해당 thing의 PQ를 상한에서 막을 것이며,
+  `oracle=instance`로 "semantic이 병목"임을 수치로 확인할 예정.
+
+### Panoptic (측정 후)
+- **semantic mIoU 대비 PQ가 어디서 오나** — 헤드 추가가 semantic을 흔드는지, PQ 이득이 SQ(마스크 품질)냐
+  RQ(검출)냐를 per-class로 분해.
+- **oracle 분해** — full ↔ oracle=semantic ↔ oracle=instance로 grouping vs semantic 병목을 수치화.
+- **clustering 민감도** — DBSCAN `eps`에 따른 over/under-segmentation (eps sweep).
+- **latency / memory** — network(18.4 scans/s, 54 ms) vs end-to-end(DBSCAN 포함) FPS, voxel/배치별 VRAM.
 
 ## Ablations
 가설을 사전 등록하고 결과를 채운다 — [`ablations.md`](ablations.md). config 플래그로 실행:

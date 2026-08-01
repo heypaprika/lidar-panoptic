@@ -7,13 +7,16 @@ panoptic 예측의 실패 모드를 정성·정량으로 정리한다. 각 항�
 > semantic / instance / panoptic 렌더를 만들고, GT와 대비해 오분류·오분할 프레임을 고른다.
 
 ## 정량 — 어디서 가장 실패하나
-`src/eval.py`의 per-class 표에서 PQ/RQ가 가장 낮은 클래스를 추린다(측정 후 기입).
+semantic(mIoU 54.8) per-class IoU에서 최악 클래스. 흔한 클래스는 포화(car 94.3, road 89.7, building
+86.9)이므로 격차는 아래 소수 클래스에 집중된다. (panoptic PQ 열은 GATE 2 eval 후 기입.)
 
-| 클래스 | PQ | RQ | 주된 오류(merge / split / 오분류) |
+| 클래스 | IoU | (PQ) | 원인 가설 |
 |---|---|---|---|
-| _worst 1_ | _tbd_ | _tbd_ | _tbd_ |
-| _worst 2_ | _tbd_ | _tbd_ | _tbd_ |
-| _worst 3_ | _tbd_ | _tbd_ | _tbd_ |
+| motorcyclist | 0.0 | _tbd_ | 극희귀 thing — augmentation/oversampling 없이 학습 안 됨 |
+| other-ground | 0.3 | — | 극희귀 stuff — 정의 모호 + 점 적음 |
+| bicycle | 13.7 | _tbd_ | 얇고 점 적음 → semantic·instance 모두 취약 |
+| parking | 23.0 | — | road/sidewalk와 경계 모호 |
+| other-vehicle | 33.2 | _tbd_ | 클래스 내 형태 다양 + 드묾 |
 
 ## 정성 — 대표 실패 모드 (가설)
 
