@@ -45,7 +45,9 @@ def main(cfg: DictConfig) -> None:
     device = "cuda" if torch.cuda.is_available() else "cpu"
     batch = {k: (v.to(device) if torch.is_tensor(v) else v) for k, v in batch.items()}
 
-    model = PanopticLit.load_from_checkpoint(cfg.ckpt, cfg=cfg).to(device).eval()
+    model = PanopticLit(cfg)  # build with eval-time cfg + load weights (see src/eval.py note)
+    model.load_state_dict(torch.load(cfg.ckpt, map_location="cpu")["state_dict"])
+    model = model.to(device).eval()
     with torch.no_grad():
         out = model(batch)
 

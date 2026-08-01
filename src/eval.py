@@ -53,7 +53,11 @@ def main(cfg: DictConfig) -> None:
 
     dm = SemanticKITTIDataModule(cfg)
     loader = dm.val_dataloader()
-    model = PanopticLit.load_from_checkpoint(cfg.ckpt, cfg=cfg).to(device).eval()
+    # build with the eval-time cfg (task/oracle/data overridable) + load weights from the ckpt.
+    # (load_from_checkpoint's saved-hparams path clashes with save_hyperparameters(OmegaConf).)
+    model = PanopticLit(cfg)
+    model.load_state_dict(torch.load(cfg.ckpt, map_location="cpu")["state_dict"])
+    model = model.to(device).eval()
     model.val_iou.reset()
 
     net_t, clu_t, n_scans = 0.0, 0.0, 0
