@@ -13,3 +13,4 @@ outputs/
 *.bin
 *.label
 .DS_Store
+.ipynb_checkpoints/

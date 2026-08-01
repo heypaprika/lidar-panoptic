@@ -76,9 +76,8 @@ python -m src.eval ckpt=<best.ckpt> task=panoptic oracle=instance data.root=$DAT
 `scripts/viz`가 semantic / instance / panoptic 렌더를 만든다. 데모 프레임과 GIF는 학습 후 여기에 추가한다.
 <!-- ![qualitative](demo/panoptic.gif) -->
 
-**학습 곡선** (train loss ↓ / val mIoU ↑) — CSVLogger의 `metrics.csv`에서 생성:
-`python -m scripts.plot_metrics <metrics.csv> demo/training_curves.png`
-<!-- ![curves](demo/training_curves.png) -->
+**학습 곡선** — train loss가 3.2→0.3으로 수렴하고, val mIoU는 ~6 epoch에 포화 후 40 epoch까지 평탄.
+![training curves](demo/training_curves.png)
 
 ## Failure analysis
 정성·정량 실패 모드를 [`docs/failure-analysis.md`](docs/failure-analysis.md)에 정리한다(학습 후 그림 포함).
@@ -99,6 +98,8 @@ python -m src.eval ckpt=<best.ckpt> task=panoptic oracle=instance data.root=$DAT
   격차는 epoch/voxel이 아니라 (1) **data augmentation 부재**(회전/스케일/flip/instance oversampling이
   없어 희귀 클래스가 학습되지 않음 — motorcyclist 0.0이 전형), (2) **compact 백본**(5.9M, SPVCNN/full
   MinkUNet보다 작음), (3) 클래스 균형 샘플링 없음 때문으로 본다.
+- **학습 길이는 병목이 아니다.** val mIoU는 ~6 epoch에 포화되어 40 epoch까지 평탄하다(위 곡선). 즉 더
+  긴 학습으로 격차가 줄지 않으며, 상한은 capacity/augmentation 쪽임을 뒷받침한다.
 - **함의.** 흔한 클래스는 포화 상태라, augmentation + 희귀클래스 oversampling이 가장 큰 상승 여지다. 이는
   panoptic으로 직결된다 — bicycle/motorcyclist의 낮은 semantic이 해당 thing의 PQ를 상한에서 막을 것이며,
   `oracle=instance`로 "semantic이 병목"임을 수치로 확인할 예정.
