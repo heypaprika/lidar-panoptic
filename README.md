@@ -65,15 +65,13 @@ Panoptic-PHNet test PQ 61.5.) 수치 출처는 아래 참고문헌.
 |---|---|---|
 | full (예측 semantic + 예측 grouping) | **45.2** | 실제 성능 |
 | `oracle=semantic` (GT semantic + 우리 offset/DBSCAN) | **95.1** | grouping이 낼 수 있는 PQ 상한 |
-| `oracle=instance` (예측 semantic + GT instance) | **43.2**\* | semantic이 허용하는 PQ 상한 |
+| `oracle=instance` (예측 semantic + GT instance) | **46.7** | semantic이 허용하는 PQ 상한 |
 
 **결론: grouping은 병목이 아니다. semantic이 상한이다.** GT 클래스를 주면 우리 offset+DBSCAN이 PQ **95.1**에
-도달한다 — grouping/offset은 사실상 해결됐다. 반대로 완벽한 grouping(GT instance)을 줘도 PQ는 full과
-거의 같다(45.2→43.2). 즉 45.2 PQ의 대부분은 **semantic segmentation 품질**에 갇혀 있으며, 이는 낮은
-semantic 클래스가 그대로 낮은 PQ로 이어지는 per-class 관찰(motorcyclist·truck·bicycle)과 일치한다.
-
-\* oracle=instance는 thing 점에만 GT instance를 주도록 수정 후 재측정 예정(초기값은 stuff에도 GT instance가
-주입돼 stuff segment가 조각나는 아티팩트가 있었음). 결론(semantic이 병목)은 oracle=semantic=95.1로 이미 확정.
+도달한다(+49.9) — grouping/offset은 사실상 해결됐다. 반대로 완벽한 grouping(GT instance)을 줘도 PQ는
+45.2→**46.7**로 +1.5에 그친다. 즉 45.2 PQ의 대부분은 **semantic segmentation 품질**에 갇혀 있으며, 낮은
+semantic 클래스가 그대로 낮은 PQ로 이어지는 per-class 관찰(motorcyclist·truck·bicycle)과 일치한다. 개선
+투자는 clustering이 아니라 semantic(augmentation·capacity·클래스 균형)에 해야 한다.
 ```bash
 python -m src.eval ckpt=<best.ckpt> task=panoptic oracle=semantic data.root=$DATA
 python -m src.eval ckpt=<best.ckpt> task=panoptic oracle=instance data.root=$DATA
@@ -120,9 +118,9 @@ python -m src.eval ckpt=<best.ckpt> task=panoptic oracle=instance data.root=$DAT
   semantic이 좋은 car(84.4)·person(64.4)·bicyclist(72.5)는 PQ도 높다. → **semantic이 thing PQ의 상한**.
 - **clustering이 지연의 지배 요인.** network 33 ms/scan인데 DBSCAN이 **435 ms/scan** → end-to-end 2.1
   scans/s. 실시간엔 부적합하며, eps/grouping 최적화(ablation)나 학습형 grouping(DS-Net)이 필요한 지점.
-- **oracle 분해로 병목 확정** — GT 클래스를 주면 PQ 45.2→**95.1**(grouping은 거의 완벽), GT instance를
-  줘도 45.2→43.2(변화 없음). 즉 **병목은 grouping이 아니라 semantic**이다(아래 Oracle 표). 개선 여지는
-  clustering이 아니라 semantic(augmentation·capacity·클래스 균형)에 있다.
+- **oracle 분해로 병목 확정** — GT 클래스를 주면 PQ 45.2→**95.1**(+49.9, grouping은 거의 완벽), GT
+  instance를 줘도 45.2→**46.7**(+1.5뿐). 즉 **병목은 grouping이 아니라 semantic**이다(아래 Oracle 표).
+  개선 여지는 clustering이 아니라 semantic(augmentation·capacity·클래스 균형)에 있다.
 
 ## Ablations
 가설을 사전 등록하고 결과를 채운다 — [`ablations.md`](ablations.md). config 플래그로 실행:
