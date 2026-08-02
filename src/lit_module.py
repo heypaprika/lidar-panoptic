@@ -109,10 +109,13 @@ class PanopticLit(pl.LightningModule):
         #   our offset+DBSCAN grouping can reach. oracle='instance': use GT instance ids as prediction
         #   (perfect grouping) → the PQ ceiling our semantics allow.
         sem_use = sem_g if self.oracle == "semantic" else sem_p
+        things = np.array(sorted(THING_TRAIN_IDS))
         for b in np.unique(pbatch):                                   # PQ is per-scan
             m = pbatch == b
             if self.oracle == "instance":
-                inst_p = inst_g[m]                                    # perfect grouping
+                # perfect grouping: GT instance on thing points only; stuff stays 0 (else the
+                # evaluator fragments stuff segments by the injected instance ids).
+                inst_p = np.where(np.isin(sem_use[m], things), inst_g[m], 0)
             else:
                 inst_p = panoptic_from_offsets(
                     xyz[m], sem_use[m], offset[m],
