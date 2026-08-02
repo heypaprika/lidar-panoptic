@@ -59,12 +59,17 @@ def main(cfg: DictConfig) -> None:
     )
     print(f"{seq}/{frame}: {len(xyz)} pts, {int(inst_pred.max())} instances")
 
+    backend = str(cfg.viz.get("backend", "bev"))  # 'bev' (matplotlib, headless-safe) | 'o3d' (needs EGL)
     if cfg.viz.save:
         os.makedirs(cfg.viz.save, exist_ok=True)
         base = os.path.join(cfg.viz.save, f"{seq}_{frame}")
-        render.save(xyz, sem_pred, f"{base}_semantic.png")
-        render.save(xyz, inst_pred, f"{base}_panoptic.png")
-        print(f"wrote {base}_semantic.png / _panoptic.png")
+        if backend == "o3d":
+            render.save(xyz, sem_pred, f"{base}_semantic.png")
+            render.save(xyz, inst_pred, f"{base}_panoptic.png")
+        else:  # BEV via matplotlib — no EGL required
+            render.save_bev(xyz, sem_pred, f"{base}_semantic.png", title=f"{seq}/{frame} semantic")
+            render.save_bev(xyz, inst_pred, f"{base}_panoptic.png", title=f"{seq}/{frame} panoptic")
+        print(f"wrote {base}_semantic.png / _panoptic.png  (backend={backend})")
     else:
         render.show(xyz, sem_pred)   # semantic
         render.show(xyz, inst_pred)  # panoptic (instance-colored)
