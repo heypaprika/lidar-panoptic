@@ -82,7 +82,9 @@ python -m src.eval ckpt=<best.ckpt> task=panoptic oracle=instance data.root=$DAT
 <!-- ![qualitative](demo/panoptic.gif) -->
 
 **학습 곡선** — train loss가 3.2→0.3으로 수렴하고, val mIoU는 ~6 epoch에 포화 후 40 epoch까지 평탄.
-![training curves](demo/training_curves.png)
+semantic(위) / panoptic(아래, +center/offset) 모두 동일한 양상.
+![semantic training curves](demo/training_curves.png)
+![panoptic training curves](demo/curves_panoptic.png)
 
 ## Failure analysis
 정성·정량 실패 모드를 [`docs/failure-analysis.md`](docs/failure-analysis.md)에 정리한다(학습 후 그림 포함).
@@ -117,7 +119,11 @@ python -m src.eval ckpt=<best.ckpt> task=panoptic oracle=instance data.root=$DAT
   낮은 PQ로 이어진다: motorcyclist(PQ 0.7), truck(7.6), other-vehicle(17.9), bicycle(14.3). 반대로
   semantic이 좋은 car(84.4)·person(64.4)·bicyclist(72.5)는 PQ도 높다. → **semantic이 thing PQ의 상한**.
 - **clustering이 지연의 지배 요인.** network 33 ms/scan인데 DBSCAN이 **435 ms/scan** → end-to-end 2.1
-  scans/s. 실시간엔 부적합하며, eps/grouping 최적화(ablation)나 학습형 grouping(DS-Net)이 필요한 지점.
+  scans/s. 실시간엔 부적합하며, 학습형 grouping(DS-Net)이나 GPU clustering이 필요한 지점.
+- **grouping은 정확도 면에선 강건하다.** DBSCAN `eps`를 0.3~1.0으로 바꿔도 PQ는 44.5~45.3(0.8점) 내에서
+  거의 불변([`ablations.md`](ablations.md) A2b). offset이 thing 점을 중심으로 잘 모은다는 뜻이며,
+  oracle=semantic(95.1)과 함께 grouping이 병목이 아님을 재확인한다. clustering 개선은 정확도가 아니라
+  **지연** 문제다.
 - **oracle 분해로 병목 확정** — GT 클래스를 주면 PQ 45.2→**95.1**(+49.9, grouping은 거의 완벽), GT
   instance를 줘도 45.2→**46.7**(+1.5뿐). 즉 **병목은 grouping이 아니라 semantic**이다(아래 Oracle 표).
   개선 여지는 clustering이 아니라 semantic(augmentation·capacity·클래스 균형)에 있다.

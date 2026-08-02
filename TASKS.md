@@ -5,11 +5,11 @@
 
 ## 지금 우선순위 — 코어 완결 (범위 확장보다 먼저)
 범위를 넓히기(4D·sim-to-real) 전에, 아래 스토리를 먼저 끝낸다:
-1. semantic baseline **mIoU** 확정 (GATE 1)
-2. panoptic **PQ** 확정 (GATE 2)
-3. **oracle 디버깅**(oracle=semantic/instance)으로 PQ 오차 분해
-4. **ablation 1개** 이상 (offset/center 제거, eps sweep, voxel 등)
-5. **qualitative + failure case** (viz + `docs/failure-analysis.md`)
+1. [x] semantic baseline **mIoU 54.8** 확정 (GATE 1) + 학습 곡선
+2. [x] panoptic **PQ 45.2** 확정 (GATE 2) + per-class + FPS + 곡선
+3. [x] **oracle 디버깅**: semantic 95.1 / instance 46.7 → 병목은 semantic
+4. [x] **ablation**: DBSCAN eps sweep(0.3/0.6/1.0 → 44.5/45.2/45.3, 강건)
+5. [ ] **qualitative + failure case** (viz 그림 — 헤드리스 렌더 확인 필요)
 
 4D 시간축 확장은 설계(`docs/consistency-4d.md`)로만 두고, 구현은 코어 완결 이후.
 

@@ -5,13 +5,27 @@
 대해 변수 하나만 분리합니다. 범위: **≥1개**를 end-to-end로 실행하고, 나머지는 가설을 명시한 "설계했으나
 미실행"으로 남깁니다. 수식은 `DESIGN.md` 참고.
 
-**Baseline (아래 모든 Δ의 기준)**
+**Baseline (아래 모든 Δ의 기준)** — GATE-2 full, val seq 08
 
-| mIoU | PQ | PQ† | SQ | RQ | FPS |
+| mIoU | PQ | PQ† | SQ | RQ | FPS(net/e2e) |
 |---|---|---|---|---|---|
-| — | — | — | — | — | — |
+| 57.1 | 45.2 | 50.7 | 74.3 | 54.9 | 29.9 / 2.1 |
 
 `python -m src.eval ckpt=<best.ckpt> task=panoptic`로 채웁니다. 아래 Δ 열은 `variant − baseline`.
+
+## A2b · DBSCAN eps 민감도 (실행 완료)
+**질문:** offset-shift 후 DBSCAN의 `eps`에 PQ가 얼마나 민감한가?
+**결과:** PQ가 eps 0.3→0.6→1.0에서 44.5 → 45.2 → 45.3으로 **0.8점 범위** 내에서 거의 불변.
+
+| eps | PQ | PQ† | SQ | RQ |
+|---|---|---|---|---|
+| 0.3 | 44.5 | 50.0 | 73.9 | 54.2 |
+| 0.6 (baseline) | 45.2 | 50.7 | 74.3 | 54.9 |
+| 1.0 | 45.3 | 50.8 | 74.3 | 55.1 |
+
+**결론:** offset이 thing 점을 중심으로 잘 모아 클러스터가 명확히 분리돼 있어, PQ가 `eps`에 **강건**하다.
+이는 oracle 분해(GT 클래스 시 grouping PQ 95.1 → grouping은 병목 아님)와 일치한다. 즉 clustering
+하이퍼파라미터 튜닝은 이 설정에서 개선 지렛대가 아니다.
 
 ---
 
