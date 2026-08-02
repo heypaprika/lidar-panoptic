@@ -39,9 +39,11 @@ points (x,y,z,remission) → voxelize(0.05 m) → spconv MinkUNet U-Net → 점�
 
 | 모델 | mIoU | PQ | PQ† | FPS(scans/s) |
 |---|---|---|---|---|
-| Semantic only | **54.8** | — | — | **18.4** |
-| + Center head | _측정중_ | _측정중_ | _측정중_ | _측정중_ |
-| + Offset head (full) | _측정중_ | _측정중_ | _측정중_ | _측정중_ |
+| Semantic only | 54.8 | — | — | 18.4 (net) |
+| + center/offset panoptic (full) | **57.1** | **45.2** | **50.7** | 29.9 net / 2.1 e2e |
+
+instance 헤드를 추가하니 semantic mIoU가 오히려 54.8→**57.1**로 올랐다(멀티태스크 학습이 feature에 도움).
+end-to-end FPS(2.1)는 network(29.9)보다 크게 낮은데, 원인은 DBSCAN clustering(스캔당 ~435 ms)이다.
 
 **공개 baseline 비교 (val seq 08, 논문 인용치)**
 
@@ -51,7 +53,7 @@ points (x,y,z,remission) → voxelize(0.05 m) → spconv MinkUNet U-Net → 점�
 | DS-Net (CVPR'21) | 57.7 | 63.4 | 77.6 | 68.0 | 63.5 |
 | KPConv + PV-RCNN | 51.7 | 57.4 | 78.9 | 63.1 | 63.1 |
 | PointGroup | 46.1 | 54.0 | 74.6 | 56.6 | 55.7 |
-| **Ours** (spconv MinkUNet + center/offset) | _측정중_ | _측정중_ | _측정중_ | _측정중_ | **54.8** |
+| **Ours** (spconv MinkUNet + center/offset) | **45.2** | **50.7** | **74.3** | **54.9** | **57.1** |
 
 DS-Net·Panoptic-PolarNet이 우리와 같은 bottom-up 계열이라 가장 가까운 비교 대상이다. (참고: 최신
 Panoptic-PHNet test PQ 61.5.) 수치 출처는 아래 참고문헌.
@@ -104,12 +106,17 @@ python -m src.eval ckpt=<best.ckpt> task=panoptic oracle=instance data.root=$DAT
   panoptic으로 직결된다 — bicycle/motorcyclist의 낮은 semantic이 해당 thing의 PQ를 상한에서 막을 것이며,
   `oracle=instance`로 "semantic이 병목"임을 수치로 확인할 예정.
 
-### Panoptic (측정 후)
-- **semantic mIoU 대비 PQ가 어디서 오나** — 헤드 추가가 semantic을 흔드는지, PQ 이득이 SQ(마스크 품질)냐
-  RQ(검출)냐를 per-class로 분해.
-- **oracle 분해** — full ↔ oracle=semantic ↔ oracle=instance로 grouping vs semantic 병목을 수치화.
-- **clustering 민감도** — DBSCAN `eps`에 따른 over/under-segmentation (eps sweep).
-- **latency / memory** — network(18.4 scans/s, 54 ms) vs end-to-end(DBSCAN 포함) FPS, voxel/배치별 VRAM.
+### Panoptic (PQ 45.2)
+- **멀티태스크가 semantic을 끌어올렸다.** instance 헤드를 더하니 mIoU가 54.8→57.1로 상승 — center/offset
+  회귀가 backbone feature에 정규화처럼 작용해 semantic에도 이득.
+- **병목은 마스크 품질이 아니라 검출이다.** SQ 74.3(매칭된 마스크는 준수)인데 **RQ 54.9**로 낮다 — 즉
+  instance를 **놓치는(false negative)** 것이 PQ를 끌어내린다. per-class로 보면 낮은 semantic이 그대로
+  낮은 PQ로 이어진다: motorcyclist(PQ 0.7), truck(7.6), other-vehicle(17.9), bicycle(14.3). 반대로
+  semantic이 좋은 car(84.4)·person(64.4)·bicyclist(72.5)는 PQ도 높다. → **semantic이 thing PQ의 상한**.
+- **clustering이 지연의 지배 요인.** network 33 ms/scan인데 DBSCAN이 **435 ms/scan** → end-to-end 2.1
+  scans/s. 실시간엔 부적합하며, eps/grouping 최적화(ablation)나 학습형 grouping(DS-Net)이 필요한 지점.
+- **oracle 분해** — full ↔ oracle=semantic(GT 클래스) ↔ oracle=instance(GT instance)로 grouping vs
+  semantic 병목을 수치화 (아래 Oracle 표, 측정 후 확정).
 
 ## Ablations
 가설을 사전 등록하고 결과를 채운다 — [`ablations.md`](ablations.md). config 플래그로 실행:

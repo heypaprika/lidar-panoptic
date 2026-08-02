@@ -10,13 +10,19 @@ panoptic 예측의 실패 모드를 정성·정량으로 정리한다. 각 항�
 semantic(mIoU 54.8) per-class IoU에서 최악 클래스. 흔한 클래스는 포화(car 94.3, road 89.7, building
 86.9)이므로 격차는 아래 소수 클래스에 집중된다. (panoptic PQ 열은 GATE 2 eval 후 기입.)
 
-| 클래스 | IoU | (PQ) | 원인 가설 |
-|---|---|---|---|
-| motorcyclist | 0.0 | _tbd_ | 극희귀 thing — augmentation/oversampling 없이 학습 안 됨 |
-| other-ground | 0.3 | — | 극희귀 stuff — 정의 모호 + 점 적음 |
-| bicycle | 13.7 | _tbd_ | 얇고 점 적음 → semantic·instance 모두 취약 |
-| parking | 23.0 | — | road/sidewalk와 경계 모호 |
-| other-vehicle | 33.2 | _tbd_ | 클래스 내 형태 다양 + 드묾 |
+panoptic 런(mIoU 57.1, PQ 45.2) per-class 기준. thing은 PQ, stuff는 IoU 관점.
+
+| 클래스 | 종류 | PQ | RQ | IoU | 원인 가설 |
+|---|---|---|---|---|---|
+| motorcyclist | T | 0.7 | 0.9 | 2.4 | 극희귀 — 사실상 미학습(RQ≈0=거의 못 잡음) |
+| truck | T | 7.6 | 12.4 | 43.7 | 드물고 크기 다양 → 검출(RQ) 붕괴, IoU는 그럭저럭 |
+| bicycle | T | 14.3 | 20.8 | 28.6 | 얇고 점 적음 → semantic·검출 모두 취약 |
+| other-vehicle | T | 17.9 | 24.1 | 38.9 | 형태 다양 + 드묾 |
+| parking | S | — | — | 23.7 | road/sidewalk와 경계 모호 |
+| other-ground | S | — | — | 0.4 | 극희귀 stuff, 정의 모호 |
+
+**패턴:** thing 실패는 대부분 **RQ(검출)≪SQ** — 마스크 품질이 아니라 놓치는 게 문제. semantic IoU가 낮은
+클래스가 그대로 낮은 PQ로 이어진다(motorcyclist·bicycle·truck) → semantic이 thing PQ의 상한.
 
 ## 정성 — 대표 실패 모드 (가설)
 
