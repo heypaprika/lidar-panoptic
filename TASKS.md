@@ -9,7 +9,7 @@
 2. [x] panoptic **PQ 45.2** 확정 (GATE 2) + per-class + FPS + 곡선
 3. [x] **oracle 디버깅**: semantic 95.1 / instance 46.7 → 병목은 semantic
 4. [x] **ablation**: DBSCAN eps sweep(0.3/0.6/1.0 → 44.5/45.2/45.3, 강건)
-5. [ ] **qualitative + failure case** (viz 그림 — 헤드리스 렌더 확인 필요)
+5. [x] **qualitative** (BEV semantic/panoptic 그림, 헤드리스 matplotlib 렌더) + failure 분석 문서
 
 4D 시간축 확장은 설계(`docs/consistency-4d.md`)로만 두고, 구현은 코어 완결 이후.
 

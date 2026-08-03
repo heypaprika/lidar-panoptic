@@ -8,9 +8,12 @@
 sparse-voxel semantic 백본(spconv MinkUNet U-Net)에 **center + offset** instance 헤드를 더해 LiDAR
 panoptic segmentation을 수행한다. 공식 **PQ / PQ† / SQ / RQ**와 **mIoU**로 평가한다.
 
-<!-- DEMO: scripts.viz가 demo/를 만들면 여기에 결과 이미지:
-![semantic vs panoptic](demo/08_000100_panoptic.png)
--->
+**결과 예시 (val seq 08, BEV)** — 왼쪽: semantic 예측(클래스별 색), 오른쪽: panoptic(stuff는 클래스색,
+thing instance는 개별 색). PQ 45.2 / mIoU 57.1.
+
+| semantic | panoptic |
+|---|---|
+| ![semantic](demo/08_000100_semantic.png) | ![panoptic](demo/08_000100_panoptic.png) |
 
 ## Abstract
 SemanticKITTI panoptic은 점별 semantic class(19+ignore)와 8개 *thing* 클래스의 instance id를 함께
