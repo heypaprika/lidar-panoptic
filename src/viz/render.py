@@ -18,17 +18,12 @@ def _palette(n: int, seed: int = 0) -> np.ndarray:
     return rng.random((n + 1, 3))
 
 
-def save_bev(xyz: np.ndarray, labels: np.ndarray, path: str, seed: int = 0,
-             title: str = "", point_size: float = 0.6) -> None:
-    """Headless bird's-eye-view (top-down x-y) scatter via matplotlib — no EGL/GPU needed.
-    Fallback for boxes without libEGL (Open3D OffscreenRenderer). labels = semantic or instance ids."""
+def _bev_fig(xyz, colors, order, path, title, point_size):
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
 
-    colors = _palette(int(labels.max()), seed)[labels]
     fig, ax = plt.subplots(figsize=(8, 8))
-    order = np.argsort(labels)  # draw background (id 0) first
     ax.scatter(xyz[order, 0], xyz[order, 1], s=point_size, c=colors[order], linewidths=0)
     ax.set_aspect("equal")
     ax.set(title=title, xlabel="x (m)", ylabel="y (m)")
@@ -36,6 +31,27 @@ def save_bev(xyz: np.ndarray, labels: np.ndarray, path: str, seed: int = 0,
     fig.tight_layout()
     fig.savefig(path, dpi=130)
     plt.close(fig)
+
+
+def save_bev(xyz: np.ndarray, labels: np.ndarray, path: str, seed: int = 0,
+             title: str = "", point_size: float = 0.6) -> None:
+    """Headless bird's-eye-view (top-down x-y) scatter via matplotlib — no EGL/GPU needed.
+    Fallback for boxes without libEGL (Open3D OffscreenRenderer). labels = semantic or instance ids."""
+    colors = _palette(int(labels.max()), seed)[labels]
+    _bev_fig(xyz, colors, np.argsort(labels), path, title, point_size)  # background (id 0) first
+
+
+def save_bev_panoptic(xyz: np.ndarray, sem: np.ndarray, inst: np.ndarray, path: str,
+                      title: str = "", point_size: float = 0.6) -> None:
+    """Proper panoptic BEV: stuff points colored by semantic class, thing instances each a distinct
+    color. Headless (matplotlib). This is the panoptic convention — not a single-color background."""
+    sem_pal = _palette(int(sem.max()), seed=1)
+    inst_pal = _palette(int(inst.max()), seed=7)
+    colors = sem_pal[sem].copy()               # stuff & background: semantic color
+    thing = inst > 0
+    colors[thing] = inst_pal[inst[thing]]      # thing instances: per-instance color
+    order = np.argsort(thing.astype(int))      # draw stuff first, instances on top
+    _bev_fig(xyz, colors, order, path, title, point_size)
 
 
 def _cloud(xyz: np.ndarray, labels: np.ndarray, seed: int):

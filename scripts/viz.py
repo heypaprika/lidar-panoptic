@@ -68,7 +68,8 @@ def main(cfg: DictConfig) -> None:
             render.save(xyz, inst_pred, f"{base}_panoptic.png")
         else:  # BEV via matplotlib — no EGL required
             render.save_bev(xyz, sem_pred, f"{base}_semantic.png", title=f"{seq}/{frame} semantic")
-            render.save_bev(xyz, inst_pred, f"{base}_panoptic.png", title=f"{seq}/{frame} panoptic")
+            render.save_bev_panoptic(  # stuff=semantic color, thing=per-instance color
+                xyz, sem_pred, inst_pred, f"{base}_panoptic.png", title=f"{seq}/{frame} panoptic")
         print(f"wrote {base}_semantic.png / _panoptic.png  (backend={backend})")
     else:
         render.show(xyz, sem_pred)   # semantic
